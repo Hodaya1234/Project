@@ -1,7 +1,8 @@
 # The main file of the project
 
 """
-flags: type of data, matlab file name, getting the data from numpy files,
+flags: in which stage to start, data file name
+
 Process order:
 1. READ THE DATA FILE
     a. If its read from a matlab file, the format used here contains three mat objects:
@@ -44,4 +45,19 @@ Process order:
 """
 
 import argparse
+import preprocessing
+import model
+import data_augmentation
+import segment_data
 parser = argparse.ArgumentParser()
+parser.add_argument("data_filename", help="path to the data file. mat or npy.")
+args = parser.parse_args()
+filename = args.data_filename
+
+# READ THE DATA
+
+# SEGMENTS
+
+# DATA SET
+
+# MODEL

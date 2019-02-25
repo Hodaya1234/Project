@@ -77,8 +77,8 @@ def create_ret(mat_name, out_name):
 
 
 # list_f = ['clean-02.12', 'clean-14.10', 'clean-16.09', 'clean-23.09', 'clean-25.11']
-filename = 'C:\\Users\\H\\Desktop\\clean bm-02.12.mat'
-create_ret(filename, 'C:\\Users\\H\\Desktop\\02.12_bm_seg_ret.mat')
+# filename = 'C:\\Users\\H\\Desktop\\clean bm-02.12.mat'
+# create_ret(filename, 'C:\\Users\\H\\Desktop\\02.12_bm_seg_ret.mat')
 # create_bm(filename, 'C:\\Users\\H\\Desktop\\02.12_bm_seg_bm.mat')
 
 
