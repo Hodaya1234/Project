@@ -54,10 +54,19 @@ parser.add_argument("data_filename", help="path to the data file. mat or npy.")
 args = parser.parse_args()
 filename = args.data_filename
 
+#################################################################################
 # READ THE DATA
+# depends on the type of data that need to be read here.
+# can get a path to a file of raw data/segments
 
+#################################################################################
 # SEGMENTS
 
+
+#################################################################################
 # DATA SET
 
+
+#################################################################################
 # MODEL
+
