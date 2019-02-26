@@ -45,28 +45,48 @@ Process order:
 """
 
 import argparse
-import preprocessing
+import read_data
 import model
-import data_augmentation
-import segment_data
+import augment
+import segment
+import create_data_set
+
 parser = argparse.ArgumentParser()
-parser.add_argument("data_filename", help="path to the data file. mat or npy.")
+parser.add_argument("data_filename", help="path to the data file. mat or npz.")
 args = parser.parse_args()
 filename = args.data_filename
 
 #################################################################################
 # READ THE DATA
+print('reading data')
 # depends on the type of data that need to be read here.
 # can get a path to a file of raw data/segments
+data = read_data.read_from_file(filename)
 
 #################################################################################
 # SEGMENTS
+print('creating segments')
+v = data['clean_vert']
+h = data['clean_horiz']
+mask = segment.vert_horiz_seg(v, h)
+seg_v = segment.divide_data_to_segments(mask, v)
+seg_h = segment.divide_data_to_segments(mask, h)
 
+# TODO have an option to save here
 
 #################################################################################
 # DATA SET
+print('creating data sets')
+# TODO take out a subset of the original data from get parameters, and save it to the test
 
+# get the parameters for each condition:
+param_v = augment.get_parameters(seg_v)
+param_h = augment.get_parameters(seg_h)
+
+data_sets = create_data_set.get_data(param_v, param_h, n_train=10, n_valid=10, n_test=10, flat_x=True, to_tensor=True)
+# data_sets is a lost containing the following np arrays: train_x, train_y, valid_x, valid_y, test_x, test_y
 
 #################################################################################
 # MODEL
-
+print('running the model')
+model.train(data_sets)

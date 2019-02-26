@@ -35,55 +35,22 @@ class DataSet(data_utils.Dataset):
         return len(self.all_y)
 
 
-def train():
-    # upload data as numpy ndarray and convert to tensor
-    train_x = torch.from_numpy(np.load('train_x.npy'))
-    train_y = torch.from_numpy(np.load('train_y.npy'))
-    test_x = torch.from_numpy(np.load('test_x.npy'))
-    test_y = torch.from_numpy(np.load('test_y.npy'))
-    test_x_real = torch.from_numpy(np.load('test_x_real.npy'))
-    test_y_real = torch.from_numpy(np.load('test_y_real.npy'))
-
-    # save the new data as tensors to dave the conversion time
-    torch.save(train_x, 'train_x')
-    torch.save(train_y, 'train_y')
-    torch.save(test_x, 'test_x')
-    torch.save(test_y, 'test_y')
-    torch.save(test_x_real, 'test_x_real')
-    torch.save(test_y_real, 'test_y_real')
-
-    # upload the tensor data
-    train_x = torch.load('train_x')             # size: n_train_examples X n_segments X n_frames
-    train_y = torch.load('train_y').float()     # size: n_train_examples
-    test_x = torch.load('test_x')               # size: n_test_examples X n_segments X n_frames
-    test_y = torch.load('test_y')  .int()       # size: n_test_examples
-    test_x_real = torch.load('test_x_real')     # size: n_real_data_examples X n_segments X n_frames
-    test_y_real = torch.load('test_y_real').int()  # size: n_real_data_examples
-
-    # get the dimensions
-    n_train_examples, n_segments, n_frames = train_x.shape
-    n_test_examples = test_x.shape[0]
-    n_real = test_x_real.shape[0]
-
-    # flatten all the x data:
-    train_x = train_x.view(n_train_examples, -1)
-    test_x = test_x.view(n_test_examples, -1)
-    test_x_real = test_x_real.view(n_real, -1)
-
+def train(data_sets):
+    train_x, train_y, valid_x, valid_y, test_x, test_y = data_sets
     # create the dataset class and data loader:
     train_dataset = DataSet(train_x, train_y)
     train_loader = data_utils.DataLoader(train_dataset, batch_size=8, shuffle=True)
 
     # create a basic FC network:
     D_in = train_x.shape[1]
-    H1 = 50
-    H2 = 20
-    H3 = 5
+    H1 = 500
+    H2 = 200
+    H3 = 50
     D_out = 1
 
     model = SimpleNet(D_in, H1, H2, H3, D_out).double()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
-    loss_fn = torch.nn.MSELoss(reduction='sum')
+    loss_fn = torch.nn.BCELoss()
 
     n_epochs = 100
     for e in range(n_epochs):
@@ -95,17 +62,17 @@ def train():
             loss.backward()
             optimizer.step()
 
-        if e % 5 == 0:
-            # accuracy on the real data:
-            correct = 0
-            outputs = model(test_x_real)
-            predictions = torch.round(outputs).int().view(outputs.numel())
-            correct += (predictions == test_y_real).sum().item()
-            print('accuracy on the real data: {0:.2f}'.format(correct / n_real))
-
-            # accuracy on the augmented data:
-            correct = 0
-            outputs = model(test_x)
-            predictions = torch.round(outputs).int().view(outputs.numel())
-            correct += (predictions == test_y).sum().item()
-            print('accuracy on the augmented data: {0:.2f}'.format(correct / n_test_examples))
+        # if e % 5 == 0:
+        #     # accuracy on the real data:
+        #     correct = 0
+        #     outputs = model(test_x_real)
+        #     predictions = torch.round(outputs).int().view(outputs.numel())
+        #     correct += (predictions == test_y_real).sum().item()
+        #     print('accuracy on the real data: {0:.2f}'.format(correct / n_real))
+        #
+        #     # accuracy on the augmented data:
+        #     correct = 0
+        #     outputs = model(test_x)
+        #     predictions = torch.round(outputs).int().view(outputs.numel())
+        #     correct += (predictions == test_y).sum().item()
+        #     print('accuracy on the augmented data: {0:.2f}'.format(correct / n_test_examples))
