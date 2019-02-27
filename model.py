@@ -40,6 +40,8 @@ def train(data_sets):
     # create the dataset class and data loader:
     train_dataset = DataSet(train_x, train_y)
     train_loader = data_utils.DataLoader(train_dataset, batch_size=8, shuffle=True)
+    test_dataset = DataSet(test_x, test_y)
+    test_loader = data_utils.DataLoader(test_dataset, batch_size=8, shuffle=False)
 
     # create a basic FC network:
     D_in = train_x.shape[1]
@@ -49,19 +51,31 @@ def train(data_sets):
     D_out = 1
 
     model = SimpleNet(D_in, H1, H2, H3, D_out).double()
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
     loss_fn = torch.nn.BCELoss()
 
-    n_epochs = 100
+    n_epochs = 20
+    train_losses = []
+    test_losses = []
     for e in range(n_epochs):
+        # epoch_train_loss = []
+        model.train()
         for x, y in train_loader:
             optimizer.zero_grad()
             y_pred = model(x)
             y_pred = y_pred.view(y_pred.numel())
-            loss = loss_fn(y_pred, y)
-            loss.backward()
+            train_loss = loss_fn(y_pred, y)
+            train_loss.backward()
             optimizer.step()
+            train_losses.append(train_loss.item())
+        # train_losses.append(sum(epoch_train_loss)/len(epoch_train_loss))
+        model.eval()
+        for x, y in test_loader:
+            outputs = model(x)
+            outputs = outputs.view(outputs.numel())
+            test_losses.append(loss_fn(outputs, y).item())
 
+    return train_losses, test_losses
         # if e % 5 == 0:
         #     # accuracy on the real data:
         #     correct = 0

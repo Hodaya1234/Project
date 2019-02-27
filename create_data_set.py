@@ -16,18 +16,21 @@ def get_data(param_v, param_h, n_train=3000, n_valid=50, n_test=50, flat_x=True,
     :return: A list of the three data-sets, including the y targets.
     """
     # create the train set
+    print('creating train')
     train_v = augment.get_new_data(param_v, n_train)
     train_h = augment.get_new_data(param_h, n_train)
     train_x = np.concatenate([train_v, train_h])
     train_y = np.concatenate([np.ones(n_train), np.zeros(n_train)])
 
     # create the validation set
+    print('creating validation')
     valid_v = augment.get_new_data(param_v, n_valid)
     valid_h = augment.get_new_data(param_h, n_valid)
     valid_x = np.concatenate([valid_v, valid_h])
     valid_y = np.concatenate([np.ones(n_valid), np.zeros(n_valid)])
 
     # create the test set
+    print('creating test')
     test_v = augment.get_new_data(param_v, n_test)
     test_h = augment.get_new_data(param_h, n_test)
     test_x = np.concatenate([test_v, test_h])
