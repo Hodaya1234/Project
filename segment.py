@@ -4,12 +4,12 @@ from skimage.segmentation import felzenszwalb, join_segmentations
 import warnings
 
 
-def vert_horiz_seg(vert, horiz):
+def vert_horiz_seg(vert, horiz, frames):
     """
     The 'main' function of this module - take the two conditions and divide the pixels to smaller groups.
     :param vert: The vertical condition data of size [10,000 X n_frames] OR [100 X 100 X n_frames]
     :param horiz: The horizontal condition data data of size [10,000 X n_frames] OR [100 X 100 X n_frames]
-    :param bg_mask: A boolean matrix that is 0 where there is 'background'. (pixels to be ignored)
+    :param frames: The relevant frames of the data - usually the frames of high activation and some baseline.
     :return: A [100 X 100] integer mask where each number marks a group of neighboring related pixels.
     """
     # if there are several trials, need to average over trials first and remove this dimension
@@ -20,6 +20,10 @@ def vert_horiz_seg(vert, horiz):
     horiz_data = np.copy(horiz)
     vert_data = change_data_dim(vert_data, to_array=False)  # make sure both are represented as matrices and not arrays
     horiz_data = change_data_dim(horiz_data, to_array=False)
+
+    vert_data = np.mean(vert_data[:, :, frames, :], 3)
+    horiz_data = np.mean(horiz_data[:, :, frames, :], 3)
+
     vert_data = change_range(vert_data)
     horiz_data = change_range(horiz_data)
     combination_data = np.concatenate((horiz_data, vert_data), axis=2)
@@ -34,42 +38,45 @@ def vert_horiz_seg(vert, horiz):
     return all_segments
 
 
-def divide_data_to_segments(segments_matrix, frames_data, keep_background=False):
+def divide_data_to_segments(segments_matrix, frames_data, frames_numbers, keep_background=False):
     """
     Take the original data and the segments mask matrix and create a segmented data
     :param segments_matrix: [100 X 100] integer mask
     :param frames_data: The original data, where the size of the first dimension is 10,000 or 100 X 100.
-    :param keep_background: Should there be a segment for the background
+    :param frames_numbers A list of numbers of the relevant frames
     :return: The data rearranged in the segments, where the value in each segment is the mean of the pixels in it.
     """
+    # if the first two dimension are 100X100 turn them to 10,000:
+    data_for_seg = np.copy(frames_data)
+    data_for_seg = change_data_dim(data_for_seg, to_array=True)
+    data_for_seg = data_for_seg[:, frames_numbers, :]
+
     seg_numbers = np.unique(segments_matrix)
     if seg_numbers[0] == 0:
         seg_numbers = seg_numbers[1:]
     else:
-        frames_data[frames_data == 0] = np.nan
+        data_for_seg[data_for_seg == 0] = np.nan
     array_segments = np.reshape(segments_matrix, (10000, 1))
-    frames_shape = np.copy(frames_data.shape)
-    # if the first two dimension are 100X100 turn them to 10,000:
-    frames_data = change_data_dim(frames_data, to_array=True)
+    frames_shape = np.copy(data_for_seg.shape)
+
     frames_shape[0] = len(seg_numbers)  # The new first dimension will be n_segments instead of 10,000
     segmented_data = np.zeros(frames_shape)
     if len(frames_shape) == 3:
         # in case there are numerous trials and frames
         for idx, num in enumerate(seg_numbers):
             pixel_indexes = np.nonzero(array_segments == num)[0]
-            segmented_data[idx, :, :] = np.nanmean(frames_data[pixel_indexes, :, :], axis=0)
+            segmented_data[idx, :, :] = np.nanmean(data_for_seg[pixel_indexes, :, :], axis=0)
     elif len(frames_shape) == 2:
         # in case there are numerous trials or numerous frames
         for idx, num in enumerate(seg_numbers):
             pixel_indexes = np.nonzero(array_segments == num)[0]
-            segmented_data[idx, :] = np.nanmean(frames_data[pixel_indexes, :], axis=0)
+            segmented_data[idx, :] = np.nanmean(data_for_seg[pixel_indexes, :], axis=0)
     else:
         # in case there is a single frame total
         for idx, num in enumerate(seg_numbers):
             pixel_indexes = np.nonzero(array_segments == num)[0]
-            segmented_data[idx] = np.nanmean(frames_data[pixel_indexes], axis=0)
+            segmented_data[idx] = np.nanmean(data_for_seg[pixel_indexes], axis=0)
     if keep_background:
-        frames_data[np.isnan(frames_data)] = 0
         segmented_data[np.isnan(segmented_data)] = 0
     return segmented_data
 

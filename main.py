@@ -1,9 +1,12 @@
-# The main file of the project
-
 """
-flags: in which stage to start, data file name
+PROJECT MAIN
 
-Process order:
+***Input arguments***:
+filename: a relative path to the data file
+flags: the type of data to start with. options: raw, seg, set and res.
+frames: the relevant frames to take from a raw data input.
+
+***Program order***:
 1. READ THE DATA FILE
     a. If its read from a matlab file, the format used here contains three mat objects:
     'clean_horiz'
@@ -45,7 +48,7 @@ Process order:
 """
 
 import argparse
-import read_data
+import data_io
 import model
 import augment
 import segment
@@ -53,40 +56,54 @@ import create_data_set
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_filename", help="path to the data file. mat or npz.")
+parser.add_argument("-fr", action="store", dest="frames", nargs='+', type=int, default=list(range(28, 45)),
+                    help="a list of integers of the frames to process.")
+parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
+                                                                           "raw: in the beginning."
+                                                                           "seg: after segmentation."
+                                                                           "set: after creating the data sets."
+                                                                           "res: in processing the result")
 args = parser.parse_args()
 filename = args.data_filename
+frames = args.frames
+flag = args.flag
 
 #################################################################################
 # READ THE DATA
 print('reading data')
-# depends on the type of data that need to be read here.
-# can get a path to a file of raw data/segments
-data = read_data.read_from_file(filename)
+data = data_io.read_from_file(filename, flag)
+if flag == "raw":
+    v = data['clean_vert']
+    h = data['clean_horiz']
+elif flag == "seg":
+    mask, seg_v, seg_h = data
+elif flag == "set":
+    data_sets = data
+# TODO add option of res
 
 #################################################################################
 # SEGMENTS
-print('creating segments')
-v = data['clean_vert']
-h = data['clean_horiz']
-mask = segment.vert_horiz_seg(v, h)
-seg_v = segment.divide_data_to_segments(mask, v)
-seg_h = segment.divide_data_to_segments(mask, h)
-
-# TODO have an option to save here
-
+if flag == "raw":
+    print('creating segments')
+    v = data['clean_vert']
+    h = data['clean_horiz']
+    mask = segment.vert_horiz_seg(v, h, frames)
+    seg_v = segment.divide_data_to_segments(mask, v, frames)
+    seg_h = segment.divide_data_to_segments(mask, h, frames)
+    data_io.save_to([mask, seg_v, seg_h], "temp_outputs\\seg.npz", "seg")
 #################################################################################
 # DATA SET
-print('creating data sets')
-# TODO take out a subset of the original data from get parameters, and save it to the test
-
-# get the parameters for each condition:
-param_v = augment.get_parameters(seg_v)
-param_h = augment.get_parameters(seg_h)
-
-data_sets = create_data_set.get_data(param_v, param_h, n_train=10, n_valid=10, n_test=10, flat_x=True, to_tensor=True)
-# data_sets is a lost containing the following np arrays: train_x, train_y, valid_x, valid_y, test_x, test_y
-
+if flag == "raw" or flag == "seg":
+    print('creating data sets')
+    # TODO take out a subset of the original data from get parameters, and save it to the test
+    # get the parameters for each condition:
+    param_v = augment.get_parameters(seg_v)
+    param_h = augment.get_parameters(seg_h)
+    data_sets = create_data_set.get_data(param_v, param_h, n_train=10, n_valid=10, n_test=10, flat_x=True, to_tensor=False)
+    # data_sets is a list containing the following np arrays: train_x, train_y, valid_x, valid_y, test_x, test_y
+    data_io.save_to(data_sets, "temp_outputs\\set.npz", "set")
 #################################################################################
 # MODEL
-print('running the model')
-model.train(data_sets)
+if flag == "raw" or flag == "seg" or flag == "set":
+    print('running the model')
+    model.train(data_sets)

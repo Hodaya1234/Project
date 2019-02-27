@@ -56,7 +56,7 @@ def train(data_sets):
     for e in range(n_epochs):
         for x, y in train_loader:
             optimizer.zero_grad()
-            y_pred = model(x).float()
+            y_pred = model(x)
             y_pred = y_pred.view(y_pred.numel())
             loss = loss_fn(y_pred, y)
             loss.backward()

@@ -39,10 +39,13 @@ def get_data(param_v, param_h, n_train=3000, n_valid=50, n_test=50, flat_x=True,
         test_x = np.reshape(test_x, (n_test*2, -1))
 
     if to_tensor:
-        new_sets = []
-        for d in [train_x, train_y, valid_x, valid_y, test_x, test_y]:
-            new_sets.append(torch.from_numpy(d))
-        return new_sets
+        return np_to_tensor([train_x, train_y, valid_x, valid_y, test_x, test_y])
     else:
         return train_x, train_y, valid_x, valid_y, test_x, test_y
 
+
+def np_to_tensor(data_sets):
+    new_sets = []
+    for d in data_sets:
+        new_sets.append(torch.from_numpy(d))
+    return new_sets
