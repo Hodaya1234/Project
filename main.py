@@ -100,7 +100,7 @@ if flag == "raw" or flag == "seg":
     # get the parameters for each condition:
     param_v = augment.get_parameters(seg_v)
     param_h = augment.get_parameters(seg_h)
-    data_sets = create_data_set.get_data(param_v, param_h, n_train=200, n_valid=50, n_test=50, flat_x=True, to_tensor=False)
+    data_sets = create_data_set.get_data(param_v, param_h, n_train=2000, n_valid=50, n_test=50, flat_x=True, to_tensor=False)
     # data_sets is a list containing the following np arrays: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs\\set.npz", "set")
 #################################################################################

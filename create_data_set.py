@@ -18,7 +18,9 @@ def get_data(param_v, param_h, n_train=3000, n_valid=50, n_test=50, flat_x=True,
     # create the train set
     print('creating train')
     train_v = augment.get_new_data(param_v, n_train)
+    print('done train vertical')
     train_h = augment.get_new_data(param_h, n_train)
+    print('done train horizontal')
     train_x = np.concatenate([train_v, train_h])
     train_y = np.concatenate([np.ones(n_train), np.zeros(n_train)])
 
