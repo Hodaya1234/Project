@@ -37,13 +37,20 @@ class DataSet(data_utils.Dataset):
         return len(self.all_y)
 
 
+def data_to_cude(data_sets, device):
+    new_data = []
+    for s in data_sets:
+        new_data.append(s.to(device))
+    return new_data
+
+
 def train(data_sets):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    train_x, train_y, valid_x, valid_y, test_x, test_y = data_sets
+    train_x, train_y, valid_x, valid_y, test_x, test_y = data_to_cude(data_sets, device)
     # create the dataset class and data loader:
     train_dataset = DataSet(train_x, train_y)
-    train_loader = data_utils.DataLoader(train_dataset, batch_size=32, shuffle=True)
+    train_loader = data_utils.DataLoader(train_dataset, batch_size=64, shuffle=True)
     # test_dataset = DataSet(test_x, test_y)
     # test_loader = data_utils.DataLoader(test_dataset, batch_size=8, shuffle=False)
 
@@ -54,11 +61,11 @@ def train(data_sets):
     H3 = 50
     D_out = 1
 
-    model = SimpleNet(D_in, H1, H2, H3, D_out).double()
+    model = SimpleNet(D_in, H1, H2, H3, D_out).double().to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_fn = torch.nn.BCELoss()
 
-    n_epochs = 200
+    n_epochs = 300
     train_losses = []
     test_losses = []
     for e in range(n_epochs):
