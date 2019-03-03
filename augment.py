@@ -39,6 +39,7 @@ def get_new_data(parameters, n=10):
     num_pixels, sqrt_cov, mean_trials, new_shape = parameters
     data = []
     for _ in range(n):
+        print(_)
         random_mat = np.reshape(np.random.multivariate_normal(np.zeros(num_pixels), np.identity(num_pixels)), (1, -1))
         new_example = (np.dot(random_mat, sqrt_cov) + mean_trials).reshape(new_shape)
         data.append(new_example)

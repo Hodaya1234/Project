@@ -86,12 +86,10 @@ elif flag == "set":
 # SEGMENTS
 if flag == "raw":
     print('creating segments')
-    v = data['clean_vert']
-    h = data['clean_horiz']
     mask = segment.vert_horiz_seg(v, h, frames)
     seg_v = segment.divide_data_to_segments(mask, v, frames)
     seg_h = segment.divide_data_to_segments(mask, h, frames)
-    data_io.save_to([mask, seg_v, seg_h], "temp_outputs\\seg.npz", "seg")
+    data_io.save_to([mask, seg_v, seg_h], "temp_outputs/seg.npz", "seg")
 #################################################################################
 # DATA SET
 if flag == "raw" or flag == "seg":
@@ -102,7 +100,7 @@ if flag == "raw" or flag == "seg":
     param_h = augment.get_parameters(seg_h)
     data_sets = create_data_set.get_data(param_v, param_h, n_train=2000, n_valid=50, n_test=50, flat_x=True, to_tensor=False)
     # data_sets is a list containing the following np arrays: train_x, train_y, valid_x, valid_y, test_x, test_y
-    data_io.save_to(data_sets, "temp_outputs\\set.npz", "set")
+    data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################
 # MODEL
 if flag == "raw" or flag == "seg" or flag == "set":
