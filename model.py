@@ -55,7 +55,7 @@ def train(data_sets):
     D_out = 1
 
     model = SimpleNet(D_in, H1, H2, H3, D_out).double()
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_fn = torch.nn.BCELoss()
 
     n_epochs = 200
