@@ -56,7 +56,7 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=50, cv=True, flat_x=
             curr_train_v = augment.get_new_data(param_v, n_train)
             curr_valid_v = augment.get_new_data(param_v, n_valid)
             curr_train_h = augment.get_new_data(param_h, n_train)
-            curr_valid_h = augment.get_new_data(param_h, n_train)
+            curr_valid_h = augment.get_new_data(param_h, n_valid)
             train_x = np.concatenate((curr_train_v, curr_train_h), 2)
             valid_x = np.concatenate((curr_valid_v, curr_valid_h), 2)
             if flat_x:

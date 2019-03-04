@@ -94,7 +94,7 @@ if flag == "raw":
 # DATA SET
 if flag == "raw" or flag == "seg":
     print('creating data sets')
-    data_sets = create_data_set.get_data(seg_v, seg_h, n_train=5, n_valid=5, cv=True, flat_x=True, to_tensor=False)
+    data_sets = create_data_set.get_data(seg_v, seg_h, n_train=100, n_valid=10, cv=True, flat_x=True, to_tensor=False)
     # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################
@@ -111,4 +111,5 @@ plt.plot(train_losses, label="train loss")
 plt.plot(validation_losses, label="validation loss")
 plt.plot(test_losses, label="test loss")
 plt.legend()
+plt.savefig('losses')
 plt.show()
