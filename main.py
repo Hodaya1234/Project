@@ -76,7 +76,6 @@ data = data_io.read_from_file(filename, flag)
 if flag == "raw":
     v = data['clean_vert']
     h = data['clean_horiz']
-    h = h[:,:,:-1]
 elif flag == "seg":
     mask, seg_v, seg_h = data
 elif flag == "set":
@@ -95,24 +94,21 @@ if flag == "raw":
 # DATA SET
 if flag == "raw" or flag == "seg":
     print('creating data sets')
-    # TODO take out a subset of the original data from get parameters, and save it to the test
-    # get the parameters for each condition:
-    param_v = augment.get_parameters(seg_v)
-    param_h = augment.get_parameters(seg_h)
-    data_sets = create_data_set.get_data(param_v, param_h, n_train=500, n_valid=50, n_test=50, flat_x=True, to_tensor=False)
-    # data_sets is a list containing the following np arrays: train_x, train_y, valid_x, valid_y, test_x, test_y
+    data_sets = create_data_set.get_data(seg_v, seg_h, n_train=5, n_valid=5, cv=True, flat_x=True, to_tensor=False)
+    # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################
 # MODEL
 if flag == "raw" or flag == "seg" or flag == "set":
     print('running the model')
-    data_sets = create_data_set.np_to_tensor(data_sets)
-    train_losses, test_losses = model.train(data_sets)
+    train, valid, test = create_data_set.turn_to_torch_dataset(data_sets, cv=True)
+    model, train_losses, validation_losses, test_losses = model.run_model([train, valid, test], cv=True)
 
 #################################################################################
 # PLOT RESULT
 plt.figure()
 plt.plot(train_losses, label="train loss")
+plt.plot(validation_losses, label="validation loss")
 plt.plot(test_losses, label="test loss")
 plt.legend()
 plt.show()
