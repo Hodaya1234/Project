@@ -2,17 +2,17 @@ import torch
 import numpy as np
 import torch.utils.data as data_utils
 from torch import optim
-
+from torch import nn
 
 class SimpleNet(torch.nn.Module):
     def __init__(self, D_in, H1, H2, H3, D_out):
         super(SimpleNet, self).__init__()
-        self.linear1 = torch.nn.Linear(D_in, H1)
-        self.linear2 = torch.nn.Linear(H1, H2)
-        self.linear3 = torch.nn.Linear(H2, H3)
-        self.linear4 = torch.nn.Linear(H3, D_out)
-        self.lrelu = torch.nn.LeakyReLU()
-        self.drop = torch.nn.Dropout(p=0.5)
+        self.linear1 = nn.Linear(D_in, H1)
+        self.linear2 = nn.Linear(H1, H2)
+        self.linear3 = nn.Linear(H2, H3)
+        self.linear4 = nn.Linear(H3, D_out)
+        self.lrelu = nn.LeakyReLU()
+        self.drop = nn.Dropout(p=0.5)
 
     def forward(self, x):
         x = self.drop(self.lrelu(self.linear1(x)))
@@ -61,14 +61,20 @@ def train(data_sets):
     H3 = 50
     D_out = 1
 
-    model = SimpleNet(D_in, H1, H2, H3, D_out).double().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    loss_fn = torch.nn.BCELoss()
+    # model = SimpleNet(D_in, H1, H2, H3, D_out).double().to(device)
+    model = nn.Sequential(nn.Linear(D_in, D_out), nn.Sigmoid()).double().to(device)
+    optimizer = optim.SGD(model.parameters(), lr=0.001)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 10000)
+    loss_fn = nn.BCELoss()
 
-    n_epochs = 300
+    n_epochs = 150000
     train_losses = []
     test_losses = []
+    test_y = test_y
+    test_y_int = test_y.int()
+
     for e in range(n_epochs):
+        scheduler.step()
         epoch_train_loss = []
         # epoch_test_loss = []
         model.train()
@@ -83,15 +89,18 @@ def train(data_sets):
         train_loss_mean = sum(epoch_train_loss)/len(epoch_train_loss)
         train_losses.append(train_loss_mean)
         model.eval()
-        # for x, y in test_loader:
-        #     outputs = model(x)
-        #     outputs = outputs.view(outputs.numel())
-        #     epoch_test_loss.append(loss_fn(outputs, y).item())
         outputs = model(test_x)
         outputs = outputs.view(outputs.numel())
         test_loss_mean = loss_fn(outputs, test_y).item()
         test_losses.append(test_loss_mean)
-        print("{}. train loss: {}   test_loss: {}".format(e, train_loss_mean, test_loss_mean))
+        if e % 100 == 0:
+            print("{}. train loss: {}   test_loss: {}".format(e, train_loss_mean, test_loss_mean))
+            correct = 0
+            predictions = torch.round(outputs).int().view(outputs.numel())
+            correct += (predictions == test_y_int).sum().item()
+            print('mean pred of y=0: {}'.format(torch.mean(outputs[test_y == 0]).item()))
+            print('mean pred of y=1: {}'.format(torch.mean(outputs[test_y == 1]).item()))
+            print('accuracy on the augmented data: {0:.2f}'.format(correct / len(test_y)))
 
     return train_losses, test_losses
         # if e % 5 == 0:

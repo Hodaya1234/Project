@@ -57,7 +57,7 @@ from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_filename", help="path to the data file. mat or npz.")
-parser.add_argument("-fr", action="store", dest="frames", nargs='+', type=int, default=list(range(28, 45)),
+parser.add_argument("-fr", action="store", dest="frames", nargs='+', type=int, default=list(range(30, 42)),
                     help="a list of integers of the frames to process.")
 parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
                                                                            "raw: in the beginning."
@@ -98,7 +98,7 @@ if flag == "raw" or flag == "seg":
     # get the parameters for each condition:
     param_v = augment.get_parameters(seg_v)
     param_h = augment.get_parameters(seg_h)
-    data_sets = create_data_set.get_data(param_v, param_h, n_train=2000, n_valid=50, n_test=50, flat_x=True, to_tensor=False)
+    data_sets = create_data_set.get_data(param_v, param_h, n_train=500, n_valid=50, n_test=50, flat_x=True, to_tensor=False)
     # data_sets is a list containing the following np arrays: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################
