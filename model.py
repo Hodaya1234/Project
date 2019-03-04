@@ -37,11 +37,22 @@ class DataSet(data_utils.Dataset):
     def __len__(self):
         return len(self.all_y)
 
+    def change_device(self, device):
+        return DataSet(self.all_x.to(device), self.all_y.to(device))
 
-def data_to_cude(data_sets, device):
+
+
+def data_to_cuda(data_sets, device, cv=True):
     new_data = []
-    for s in data_sets:
-        new_data.append(s.to(device))
+    if cv:
+        for set_type in data_sets:
+            set_type_list = []
+            for one_dataset in set_type:
+                set_type_list.append(one_dataset.change_device(device))
+            new_data.append(set_type_list)
+    else:
+        for s in data_sets:
+            new_data.append(s.to(device))
     return new_data
 
 
@@ -53,10 +64,10 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
     if cv:
         train_loaders = []
         for train_d in train_dataset:
-            train_loaders.append(data_utils.DataLoader(train_d, batch_size=2, shuffle=True))
-        for e in range(n_epochs):
+            train_loaders.append(data_utils.DataLoader(train_d, batch_size=32, shuffle=True))
+        for e in range(1, n_epochs + 1):
+            scheduler.step()
             for one_train_loader, one_valid_set, one_test_set in zip(train_loaders, valid_dataset, test_dataset):
-                scheduler.step()
                 epoch_train_loss = []
                 model.train()
                 for x, y in one_train_loader:
@@ -72,26 +83,30 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
                 model.eval()
                 outputs = model(one_valid_set.all_x)
                 outputs = outputs.view(outputs.numel())
-                valid_losses.append(loss_fn(outputs, one_valid_set.all_y).item())
+                valid_loss_mean = loss_fn(outputs, one_valid_set.all_y).item()
+                valid_losses.append(valid_loss_mean)
 
                 outputs = model(one_test_set.all_x)
                 outputs = outputs.view(outputs.numel())
-                test_losses.append(loss_fn(outputs, one_test_set.all_y).item())
+                test_loss_mean = loss_fn(outputs, one_test_set.all_y).item()
+                test_losses.append(test_loss_mean)
 
                 if e % 100 == 0:
-                    test_y_int = one_test_set.all_y.int()
-                    outputs = model(one_test_set.all_x)
-                    outputs = outputs.view(outputs.numel())
-                    predictions = torch.round(outputs).int().view(outputs.numel())
-                    correct = (predictions == test_y_int).sum().item()
-                    test_accuracies.append(correct)
-                    # print("{}. train loss: {}   test_loss: {}".format(e, train_loss_mean, test_loss_mean))
-                    print('mean pred of y=0: {}'.format(torch.mean(outputs[test_y_int == 0]).item()))
-                    print('mean pred of y=1: {}'.format(torch.mean(outputs[test_y_int == 1]).item()))
-                    print('accuracy on the augmented data: {0:.2f}'.format(correct / len(test_y_int)))
+                    print("{}. train loss: {}   valid_loss: {}  test_loss: {}".format(e, train_loss_mean, valid_loss_mean, test_loss_mean))
+                # if e % 100 == 0:
+                #     test_y_int = one_test_set.all_y.int()
+                #     outputs = model(one_test_set.all_x)
+                #     outputs = outputs.view(outputs.numel())
+                #     predictions = torch.round(outputs).int().view(outputs.numel())
+                #     correct = (predictions == test_y_int).sum().item()
+                #     test_accuracies.append(correct)
+                #     # print("{}. train loss: {}   test_loss: {}".format(e, train_loss_mean, test_loss_mean))
+                #     print('mean pred of y=0: {}'.format(torch.mean(outputs[test_y_int == 0]).item()))
+                #     print('mean pred of y=1: {}'.format(torch.mean(outputs[test_y_int == 1]).item()))
+                #     print('accuracy on the augmented data: {0:.2f}'.format(correct / len(test_y_int)))
 
     else:
-        train_loader = data_utils.DataLoader(train_dataset, batch_size=2, shuffle=True)
+        train_loader = data_utils.DataLoader(train_dataset, batch_size=32, shuffle=True)
         valid_y_int = valid_dataset.all_y.int()
         for e in range(n_epochs):
             scheduler.step()
@@ -126,7 +141,7 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
 def run_model(data_sets, cv=True):
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     print(device)
-    train_dataset, valid_dataset, test_dataset = data_sets  # DataSet objects
+    train_dataset, valid_dataset, test_dataset = data_to_cuda(data_sets, device, cv)  # DataSet objects
     if cv:
         D_in = train_dataset[0].all_x.shape[1]
     else:
@@ -137,10 +152,10 @@ def run_model(data_sets, cv=True):
     D_out = 1
 
     model = SimpleNet(D_in, H1, H2, H3, D_out).double().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.001)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, 10000)
+    optimizer = optim.SGD(model.parameters(), lr=0.01)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 200)
     loss_fn = nn.BCELoss()
-    n_epochs = 100
+    n_epochs = 1000
 
     model, train_losses, validation_losses, test_losses = train_model(model, train_dataset, valid_dataset, train_dataset,
                                                          optimizer, scheduler,
