@@ -57,7 +57,7 @@ from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_filename", help="path to the data file. mat or npz.")
-parser.add_argument("-fr", action="store", dest="frames", nargs='+', type=int, default=list(range(30, 42)),
+parser.add_argument("-fr", action="store", dest="frames", nargs='+', type=int, default=list(range(30, 40)),
                     help="a list of integers of the frames to process.")
 parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
                                                                            "raw: in the beginning."
@@ -76,6 +76,7 @@ data = data_io.read_from_file(filename, flag)
 if flag == "raw":
     v = data['clean_vert']
     h = data['clean_horiz']
+    h = h[:,:,:-1]
 elif flag == "seg":
     mask, seg_v, seg_h = data
 elif flag == "set":

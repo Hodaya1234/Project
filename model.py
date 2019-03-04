@@ -45,8 +45,8 @@ def data_to_cude(data_sets, device):
 
 
 def train(data_sets):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    print(device)
     train_x, train_y, valid_x, valid_y, test_x, test_y = data_to_cude(data_sets, device)
     # create the dataset class and data loader:
     train_dataset = DataSet(train_x, train_y)
@@ -61,8 +61,8 @@ def train(data_sets):
     H3 = 50
     D_out = 1
 
-    # model = SimpleNet(D_in, H1, H2, H3, D_out).double().to(device)
-    model = nn.Sequential(nn.Linear(D_in, D_out), nn.Sigmoid()).double().to(device)
+    model = SimpleNet(D_in, H1, H2, H3, D_out).double().to(device)
+    # model = nn.Sequential(nn.Linear(D_in, D_out), nn.Sigmoid()).double().to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.StepLR(optimizer, 10000)
     loss_fn = nn.BCELoss()
