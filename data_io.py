@@ -37,7 +37,7 @@ def read_from_file(filename, flag):
     else:                           # numpy file - .npy or .npz
         file = np.load(filename)
     if flag == 'raw':
-        return file
+        return file['clean_vert'], file['clean_horiz']
     if flag == 'seg':
         return file['mask'], file['seg_v'], file['seg_h']
     if flag == 'set':

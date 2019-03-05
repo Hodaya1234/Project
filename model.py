@@ -41,7 +41,6 @@ class DataSet(data_utils.Dataset):
         return DataSet(self.all_x.to(device), self.all_y.to(device))
 
 
-
 def data_to_cuda(data_sets, device, cv=True):
     new_data = []
     if cv:
@@ -56,7 +55,7 @@ def data_to_cuda(data_sets, device, cv=True):
     return new_data
 
 
-def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, scheduler, loss_fn, n_epochs, cv=True):
+def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, scheduler, loss_fn, n_epochs, cv):
     train_losses = []
     valid_losses = []
     test_losses = []
@@ -139,7 +138,7 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
 
 
 def run_model(data_sets, cv=True):
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
     train_dataset, valid_dataset, test_dataset = data_to_cuda(data_sets, device, cv)  # DataSet objects
     if cv:
@@ -152,14 +151,14 @@ def run_model(data_sets, cv=True):
     D_out = 1
 
     model = SimpleNet(D_in, H1, H2, H3, D_out).double().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, 200)
+    optimizer = optim.SGD(model.parameters(), lr=0.001)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 2000)
     loss_fn = nn.BCELoss()
-    n_epochs = 1000
+    n_epochs = 10000
 
-    model, train_losses, validation_losses, test_losses = train_model(model, train_dataset, valid_dataset, train_dataset,
-                                                         optimizer, scheduler,
-                                                         loss_fn, n_epochs, cv=cv)
+    model, train_losses, validation_losses, test_losses = train_model(model, train_dataset,
+                                                                      valid_dataset, train_dataset, optimizer,
+                                                                      scheduler, loss_fn, n_epochs, cv=cv)
 
     return model, train_losses, validation_losses, test_losses
 

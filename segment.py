@@ -4,12 +4,12 @@ from skimage.segmentation import felzenszwalb, join_segmentations
 import warnings
 
 
-def vert_horiz_seg(vert, horiz, frames):
+def vert_horiz_seg(vert, horiz, frames_for_seg):
     """
     The 'main' function of this module - take the two conditions and divide the pixels to smaller groups.
     :param vert: The vertical condition data of size [10,000 X n_frames] OR [100 X 100 X n_frames]
     :param horiz: The horizontal condition data data of size [10,000 X n_frames] OR [100 X 100 X n_frames]
-    :param frames: The relevant frames of the data - usually the frames of high activation and some baseline.
+    :param frames_for_seg: The relevant frames of the data - usually the frames of high activation and some baseline.
     :return: A [100 X 100] integer mask where each number marks a group of neighboring related pixels.
     """
     # if there are several trials, need to average over trials first and remove this dimension
@@ -21,8 +21,8 @@ def vert_horiz_seg(vert, horiz, frames):
     vert_data = change_data_dim(vert_data, to_array=False)  # make sure both are represented as matrices and not arrays
     horiz_data = change_data_dim(horiz_data, to_array=False)
 
-    vert_data = np.mean(vert_data[:, :, frames, :], 3)
-    horiz_data = np.mean(horiz_data[:, :, frames, :], 3)
+    vert_data = np.mean(vert_data[:, :, frames_for_seg, :], 3)
+    horiz_data = np.mean(horiz_data[:, :, frames_for_seg, :], 3)
 
     vert_data = change_range(vert_data)
     horiz_data = change_range(horiz_data)
@@ -38,18 +38,18 @@ def vert_horiz_seg(vert, horiz, frames):
     return all_segments
 
 
-def divide_data_to_segments(segments_matrix, frames_data, frames_numbers, keep_background=False):
+def divide_data_to_segments(segments_matrix, raw_data, frames_for_data, keep_background=False):
     """
     Take the original data and the segments mask matrix and create a segmented data
     :param segments_matrix: [100 X 100] integer mask
-    :param frames_data: The original data, where the size of the first dimension is 10,000 or 100 X 100.
-    :param frames_numbers A list of numbers of the relevant frames
+    :param raw_data: The original data, where the size of the first dimension is 10,000 or 100 X 100.
+    :param frames_for_data A list of numbers of the relevant frames
     :return: The data rearranged in the segments, where the value in each segment is the mean of the pixels in it.
     """
     # if the first two dimension are 100X100 turn them to 10,000:
-    data_for_seg = np.copy(frames_data)
+    data_for_seg = np.copy(raw_data)
     data_for_seg = change_data_dim(data_for_seg, to_array=True)
-    data_for_seg = data_for_seg[:, frames_numbers, :]
+    data_for_seg = data_for_seg[:, frames_for_data, :]
 
     seg_numbers = np.unique(segments_matrix)
     if seg_numbers[0] == 0:

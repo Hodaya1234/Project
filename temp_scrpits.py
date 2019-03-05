@@ -9,14 +9,13 @@ import scipy.io as sio
 import segment
 
 data_set = np.load('temp_outputs/set.npz')
-test_x = data_set['test_x']
+train_x = data_set['train_x'][6, 1, :]
 seg_file = np.load('temp_outputs/seg.npz')
 segs = seg_file['mask']
 n_seg = len(np.unique(segs)) - 1
-test_x = test_x.T # pixels X n_examples
-test_x = test_x.reshape((n_seg, -1, 100))
-test_x = segment.recreate_image(segs, test_x)
-sio.savemat('mat_data', {'test':test_x})
+train_x = train_x.reshape((n_seg, -1))
+train_x = segment.recreate_image(segs, train_x)
+sio.savemat('temp_outputs/mat_example', {'test':train_x})
 
 
 # set_file = np.load('temp_outputs/seg.npz')

@@ -57,7 +57,9 @@ from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_filename", help="path to the data file. mat or npz.")
-parser.add_argument("-fr", action="store", dest="frames", nargs='+', type=int, default=list(range(30, 40)),
+parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(28, 42)),
+                    help="a list of integers of the frames to process.")
+parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(30, 40)),
                     help="a list of integers of the frames to process.")
 parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
                                                                            "raw: in the beginning."
@@ -66,7 +68,8 @@ parser.add_argument("-f", action="store", dest="flag", default="raw", help="Wher
                                                                            "res: in processing the result")
 args = parser.parse_args()
 filename = args.data_filename
-frames = args.frames
+frames_seg = args.frames_seg
+frames_data = args.frames_data
 flag = args.flag
 
 #################################################################################
@@ -74,8 +77,7 @@ flag = args.flag
 print('reading data')
 data = data_io.read_from_file(filename, flag)
 if flag == "raw":
-    v = data['clean_vert']
-    h = data['clean_horiz']
+    v, h = data
 elif flag == "seg":
     mask, seg_v, seg_h = data
 elif flag == "set":
@@ -86,15 +88,15 @@ elif flag == "set":
 # SEGMENTS
 if flag == "raw":
     print('creating segments')
-    mask = segment.vert_horiz_seg(v, h, frames)
-    seg_v = segment.divide_data_to_segments(mask, v, frames)
-    seg_h = segment.divide_data_to_segments(mask, h, frames)
+    mask = segment.vert_horiz_seg(v, h, frames_seg)
+    seg_v = segment.divide_data_to_segments(mask, v, frames_data)
+    seg_h = segment.divide_data_to_segments(mask, h, frames_data)
     data_io.save_to([mask, seg_v, seg_h], "temp_outputs/seg.npz", "seg")
 #################################################################################
 # DATA SET
 if flag == "raw" or flag == "seg":
     print('creating data sets')
-    data_sets = create_data_set.get_data(seg_v, seg_h, n_train=100, n_valid=10, cv=True, flat_x=True, to_tensor=False)
+    data_sets = create_data_set.get_data(seg_v, seg_h, n_train=500, n_valid=50, cv=True, flat_x=True, to_tensor=False)
     # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################

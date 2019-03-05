@@ -48,17 +48,14 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=50, cv=True, flat_x=
         n_v = seg_v.shape[2]
         n_h = seg_h.shape[2]
         for i in range(min(n_v, n_h)):
-            test_x = np.concatenate((np.expand_dims(seg_v[:, :, i], axis=2), np.expand_dims(seg_h[:, :, i], axis=2)), 2)
-            curr_train_orig_v = np.array([seg_v[:, :, j] for j in range(n_v) if j != i])
-            curr_train_orig_h = np.array([seg_h[:, :, j] for j in range(n_h) if j != i])
-            param_v = augment.get_parameters(curr_train_orig_v)
-            param_h = augment.get_parameters(curr_train_orig_h)
-            curr_train_v = augment.get_new_data(param_v, n_train)
-            curr_valid_v = augment.get_new_data(param_v, n_valid)
-            curr_train_h = augment.get_new_data(param_h, n_train)
-            curr_valid_h = augment.get_new_data(param_h, n_valid)
-            train_x = np.concatenate((curr_train_v, curr_train_h), 2)
-            valid_x = np.concatenate((curr_valid_v, curr_valid_h), 2)
+            indexes = [j for j in range(min(n_v, n_h)) if j != i]
+            test_x = np.concatenate((np.expand_dims(seg_v[:, :, i], axis=0), np.expand_dims(seg_h[:, :, i], axis=0)), 0)
+            param_v = augment.get_parameters(seg_v[:, :, indexes])
+            param_h = augment.get_parameters(seg_h[:, :, indexes])
+            curr_train_v, curr_train_h = augment.get_new_data(param_v, n_train), augment.get_new_data(param_h, n_train)
+            curr_valid_v, curr_valid_h = augment.get_new_data(param_v, n_valid), augment.get_new_data(param_h, n_valid)
+            train_x = np.concatenate((curr_train_v, curr_train_h), 0)
+            valid_x = np.concatenate((curr_valid_v, curr_valid_h), 0)
             if flat_x:
                 train_x = np.reshape(train_x, (n_train * 2, -1))
                 valid_x = np.reshape(valid_x, (n_valid * 2, -1))
