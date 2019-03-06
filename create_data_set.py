@@ -2,7 +2,7 @@ import numpy as np
 import augment
 import torch
 from model import DataSet
-
+from scipy import stats
 
 def turn_to_torch_dataset(data_sets, cv=True):
     """
@@ -30,6 +30,7 @@ def turn_to_torch_dataset(data_sets, cv=True):
         for te in test_sets_x:
             test.append(DataSet(torch.from_numpy(te), test_y))
         return train, valid, test
+
 
 
 def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=50, cv=True, flat_x=True, to_tensor=True):

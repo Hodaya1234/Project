@@ -18,9 +18,9 @@ def get_parameters(segmented_data):
     num_pixels = arrayed_segments.shape[0]
     mean_trials = np.nanmean(arrayed_segments, axis=1)
 
-    cov_mat = np.cov(arrayed_segments)
-    sqrt_cov = linalg.sqrtm(cov_mat).real
-    new_shape = segmented_data.shape[:-1]
+    cov_mat = np.cov(arrayed_segments)      # n_segments X n_segments
+    sqrt_cov = linalg.sqrtm(cov_mat).real   # n_segments X n_segments
+    new_shape = segmented_data.shape[:-1]   #
     parameters = [num_pixels, sqrt_cov, mean_trials, new_shape]
     return parameters
 
