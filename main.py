@@ -71,6 +71,7 @@ filename = args.data_filename
 frames_seg = args.frames_seg
 frames_data = args.frames_data
 flag = args.flag
+cv = False
 
 #################################################################################
 # READ THE DATA
@@ -96,15 +97,15 @@ if flag == "raw":
 # DATA SET
 if flag == "raw" or flag == "seg":
     print('creating data sets')
-    data_sets = create_data_set.get_data(seg_v, seg_h, n_train=500, n_valid=50, cv=True, flat_x=True, to_tensor=False)
+    data_sets = create_data_set.get_data(seg_v, seg_h, n_train=500, n_valid=50, cv=cv, flat_x=True, to_tensor=False)
     # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################
 # MODEL
 if flag == "raw" or flag == "seg" or flag == "set":
     print('running the model')
-    train, valid, test = create_data_set.turn_to_torch_dataset(data_sets, cv=True)
-    model, train_losses, validation_losses, test_losses = model.run_model([train, valid, test], cv=True)
+    train, valid, test = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+    model, train_losses, validation_losses, test_losses = model.run_model([train, valid, test], cv=cv)
 
 #################################################################################
 # PLOT RESULT

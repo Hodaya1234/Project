@@ -12,19 +12,24 @@ def turn_to_torch_dataset(data_sets, cv=True):
     :return: Three DataSet objects
     """
     if not cv:
-        return np_to_tensor(data_sets)
-    train_sets_x, train_y, validation_sets_x, valid_y, test_sets_x, test_y = data_sets
-    train = []
-    valid = []
-    test = []
-    train_y, valid_y, test_y = torch.tensor(train_y), torch.tensor(valid_y), torch.tensor(test_y)
-    for tr in train_sets_x:
-        train.append(DataSet(torch.from_numpy(tr), train_y))
-    for v in validation_sets_x:
-        valid.append(DataSet(torch.from_numpy(v), valid_y))
-    for te in test_sets_x:
-        test.append(DataSet(torch.from_numpy(te), test_y))
-    return train, valid, test
+        train_x, train_y, validation_x, validation_y, test_x, test_y = data_sets
+        train = DataSet(torch.from_numpy(train_x), torch.from_numpy(train_y))
+        valid = DataSet(torch.from_numpy(validation_x), torch.from_numpy(validation_y))
+        test = DataSet(torch.from_numpy(test_x), torch.from_numpy(test_y))
+        return train, valid, test
+    else:
+        train_sets_x, train_y, validation_sets_x, valid_y, test_sets_x, test_y = data_sets
+        train = []
+        valid = []
+        test = []
+        train_y, valid_y, test_y = torch.tensor(train_y), torch.tensor(valid_y), torch.tensor(test_y)
+        for tr in train_sets_x:
+            train.append(DataSet(torch.from_numpy(tr), train_y))
+        for v in validation_sets_x:
+            valid.append(DataSet(torch.from_numpy(v), valid_y))
+        for te in test_sets_x:
+            test.append(DataSet(torch.from_numpy(te), test_y))
+        return train, valid, test
 
 
 def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=50, cv=True, flat_x=True, to_tensor=True):
