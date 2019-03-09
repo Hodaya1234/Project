@@ -181,5 +181,5 @@ def run_model(data_sets, cv=True, norm=True):
                                                                       valid_dataset, train_dataset, optimizer,
                                                                       scheduler, loss_fn, n_epochs, cv=cv)
 
-    return model, train_losses, validation_losses, test_losses
+    return model.state_dict(), train_losses, validation_losses, test_losses
 

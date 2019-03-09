@@ -50,10 +50,10 @@ frames: the relevant frames to take from a raw data input.
 import argparse
 import data_io
 import model
-import augment
+import visualize_res
 import segment
 import create_data_set
-from matplotlib import pyplot as plt
+from scipy import io as sio
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_filename", help="path to the data file. mat or npz.")
@@ -84,7 +84,7 @@ elif flag == "seg":
 elif flag == "set":
     data_sets = data
 elif flag == "res":
-    model, train_losses, validation_losses, test_losses = data
+    model_state, train_losses, validation_losses, test_losses = data
 
 #################################################################################
 # SEGMENTS
@@ -106,15 +106,13 @@ if flag == "raw" or flag == "seg":
 if flag == "raw" or flag == "seg" or flag == "set":
     print('running the model')
     train, valid, test = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
-    model, train_losses, validation_losses, test_losses = model.run_model([train, valid, test], cv=cv)
-    data_io.save_to([model, train_losses, validation_losses, test_losses], "temp_outputs/res.npz", "res")
+    model_state, train_losses, validation_losses, test_losses = model.run_model([train, valid, test], cv=cv)
+    data_io.save_to([model_state, train_losses, validation_losses, test_losses], "temp_outputs/res.npz", "res")
 #################################################################################
 
-# PLOT RESULT
-plt.figure()
-plt.plot(train_losses, label="train loss")
-plt.plot(validation_losses, label="validation loss")
-plt.plot(test_losses, label="test loss")
-plt.legend()
-plt.savefig('losses')
-plt.show()
+mask, _, _ = data_io.read_from_file("temp_outputs/seg.npz", "seg")
+image = visualize_res.plot_weights(model_state, mask)
+sio.savemat("temp_outputs/test_vis", {'vis':image})
+# visualize_res.plot_losses(train_losses, validation_losses, test_losses)
+
+
