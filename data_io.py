@@ -43,8 +43,7 @@ def read_from_file(filename, flag):
     if flag == 'set':
         return file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
     if flag == 'res':
-        return file
-    # return the dictionary of the arrays
+        return file['model'], file['train_losses'], file['validation_losses'], file['test_losses']
 
 
 def save_to(data, filename, flag):
@@ -79,4 +78,7 @@ def save_to(data, filename, flag):
         np.savez(
             filename, train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
     if flag == 'res':
+        model, train_losses, validation_losses, test_losses = data
+        np.savez(filename,
+                 model=model, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses)
         return

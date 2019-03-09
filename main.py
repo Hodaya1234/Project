@@ -83,7 +83,8 @@ elif flag == "seg":
     mask, seg_v, seg_h = data
 elif flag == "set":
     data_sets = data
-# TODO add option of res
+elif flag == "res":
+    model, train_losses, validation_losses, test_losses = data
 
 #################################################################################
 # SEGMENTS
@@ -106,8 +107,9 @@ if flag == "raw" or flag == "seg" or flag == "set":
     print('running the model')
     train, valid, test = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
     model, train_losses, validation_losses, test_losses = model.run_model([train, valid, test], cv=cv)
-
+    data_io.save_to([model, train_losses, validation_losses, test_losses], "temp_outputs/res.npz", "res")
 #################################################################################
+
 # PLOT RESULT
 plt.figure()
 plt.plot(train_losses, label="train loss")
