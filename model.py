@@ -8,17 +8,17 @@ from torch import nn
 class SimpleNet(torch.nn.Module):
     def __init__(self, D_in, H1, H2, H3, D_out):
         super(SimpleNet, self).__init__()
-        # self.linear1 = nn.Linear(D_in, H1)
+        self.linear1 = nn.Linear(D_in, H1)
         self.linear2 = nn.Linear(D_in, H2)
-        # self.linear3 = nn.Linear(H2, H3)
+        self.linear3 = nn.Linear(H2, H3)
         self.linear4 = nn.Linear(H2, D_out)
         self.relu = nn.ReLU()
-        # self.drop = nn.Dropout(p=0.5)
+        self.drop = nn.Dropout(p=0.5)
 
     def forward(self, x):
-        # x = self.lrelu(self.linear1(x))
+        x = self.lrelu(self.linear1(x))
         x = self.relu(self.linear2(x))
-        # x = self.lrelu(self.linear3(x))
+        x = self.lrelu(self.linear3(x))
         x = torch.sigmoid(self.linear4(x))
         return x
 

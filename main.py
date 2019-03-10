@@ -57,9 +57,9 @@ from scipy import io as sio
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_filename", help="path to the data file. mat or npz.")
-parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(28, 42)),
+parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(28, 50)),
                     help="a list of integers of the frames to process.")
-parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(30, 40)),
+parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(30, 50)),
                     help="a list of integers of the frames to process.")
 parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
                                                                            "raw: in the beginning."
@@ -98,7 +98,8 @@ if flag == "raw":
 # DATA SET
 if flag == "raw" or flag == "seg":
     print('creating data sets')
-    data_sets = create_data_set.get_data(seg_v, seg_h, n_train=500, n_valid=50, n_test=50, cv=cv, flat_x=True, to_tensor=False)
+    data_sets = create_data_set.get_data(
+        seg_v, seg_h, n_train=50, n_valid=10, n_test=10, cv=cv, flat_x=True, to_tensor=False)
     # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################

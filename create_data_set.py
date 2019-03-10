@@ -4,6 +4,7 @@ import torch
 from model import DataSet
 from scipy import stats
 
+
 def turn_to_torch_dataset(data_sets, cv=True):
     """
     This function is for the 'cv' data, that is made of dictionaries
@@ -32,8 +33,7 @@ def turn_to_torch_dataset(data_sets, cv=True):
         return train, valid, test
 
 
-
-def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=50, cv=True, flat_x=True, to_tensor=True):
+def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True):
     """
     Create the data set from the relevant parameters
     :param seg_v: The segmented original vertical condition
@@ -53,7 +53,13 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=50, cv=True, flat_x=
         test_sets_x = []
         n_v = seg_v.shape[2]
         n_h = seg_h.shape[2]
+        min_original_set = min(n_v, n_h)
+        size_set = min_original_set - n_test
         for i in range(min(n_v, n_h)):
+            total_indexes_v = np.random.randint(0, n_v, min_original_set)
+            total_indexes_h = np.random.randint(0, n_h, min_original_set)
+
+
             indexes = [j for j in range(min(n_v, n_h)) if j != i]
             test_x = np.concatenate((np.expand_dims(seg_v[:, :, i], axis=0), np.expand_dims(seg_h[:, :, i], axis=0)), 0)
             param_v = augment.get_parameters(seg_v[:, :, indexes])
