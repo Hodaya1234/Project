@@ -99,7 +99,7 @@ if flag == "raw":
 if flag == "raw" or flag == "seg":
     print('creating data sets')
     data_sets = create_data_set.get_data(
-        seg_v, seg_h, n_train=50, n_valid=10, n_test=10, cv=cv, flat_x=True, to_tensor=False)
+        seg_v, seg_h, n_train=50, n_valid=10, n_test=2, cv=cv, flat_x=True, to_tensor=False)
     # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################

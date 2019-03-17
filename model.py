@@ -16,9 +16,9 @@ class SimpleNet(torch.nn.Module):
         self.drop = nn.Dropout(p=0.5)
 
     def forward(self, x):
-        x = self.lrelu(self.linear1(x))
+        x = self.relu(self.linear1(x))
         x = self.relu(self.linear2(x))
-        x = self.lrelu(self.linear3(x))
+        x = self.relu(self.linear3(x))
         x = torch.sigmoid(self.linear4(x))
         return x
 

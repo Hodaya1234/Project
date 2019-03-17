@@ -33,6 +33,14 @@ def turn_to_torch_dataset(data_sets, cv=True):
         return train, valid, test
 
 
+def get_train_test_indices(n_total, n_train, n_test):
+    total_indices = np.random.randint(0, n_total, n_train + n_test)
+    test_indices_from_total = np.random.randint(0, n_train + n_test, n_test)
+    test_indices = total_indices[test_indices_from_total]
+    train_indices = np.delete(total_indices, test_indices_from_total)
+    return train_indices, test_indices
+
+
 def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True):
     """
     Create the data set from the relevant parameters
@@ -54,18 +62,22 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
         n_v = seg_v.shape[2]
         n_h = seg_h.shape[2]
         min_original_set = min(n_v, n_h)
-        size_set = min_original_set - n_test
+        train_set_size = min_original_set - n_test
         for i in range(min(n_v, n_h)):
-            total_indexes_v = np.random.randint(0, n_v, min_original_set)
-            total_indexes_h = np.random.randint(0, n_h, min_original_set)
+            train_indices_v, test_indices_v = get_train_test_indices(n_v, train_set_size, n_test)
+            train_indices_h, test_indices_h = get_train_test_indices(n_h, train_set_size, n_test)
 
+            test_x = np.concatenate((np.expand_dims(seg_v[:, :, test_indices_v], axis=0),
+                                     np.expand_dims(seg_h[:, :, test_indices_h], axis=0)), 0)
 
-            indexes = [j for j in range(min(n_v, n_h)) if j != i]
-            test_x = np.concatenate((np.expand_dims(seg_v[:, :, i], axis=0), np.expand_dims(seg_h[:, :, i], axis=0)), 0)
-            param_v = augment.get_parameters(seg_v[:, :, indexes])
-            param_h = augment.get_parameters(seg_h[:, :, indexes])
-            curr_train_v, curr_train_h = augment.get_new_data(param_v, n_train), augment.get_new_data(param_h, n_train)
-            curr_valid_v, curr_valid_h = augment.get_new_data(param_v, n_valid), augment.get_new_data(param_h, n_valid)
+            param_v = augment.get_parameters(seg_v[:, :, train_indices_v])
+            curr_train_v = augment.get_new_data(param_v, n_train)
+            curr_valid_v = augment.get_new_data(param_v, n_valid)
+
+            param_h = augment.get_parameters(seg_h[:, :, train_indices_h])
+            curr_train_h = augment.get_new_data(param_h, n_train)
+            curr_valid_h = augment.get_new_data(param_h, n_valid)
+
             train_x = np.concatenate((curr_train_v, curr_train_h), 0)
             valid_x = np.concatenate((curr_valid_v, curr_valid_h), 0)
             if flat_x:
