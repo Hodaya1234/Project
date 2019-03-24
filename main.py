@@ -112,8 +112,8 @@ if flag == "raw" or flag == "seg" or flag == "set":
 #################################################################################
 
 mask, _, _ = data_io.read_from_file("temp_outputs/seg.npz", "seg")
-image = visualize_res.plot_weights(model_state, mask)
-sio.savemat("temp_outputs/test_vis", {'vis':image})
+# image = visualize_res.plot_weights(model_state, mask)
+# sio.savemat("temp_outputs/test_vis", {'vis':image})
 # visualize_res.plot_losses(train_losses, validation_losses, test_losses)
 
 
