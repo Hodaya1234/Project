@@ -26,3 +26,5 @@ def plot_weights(model_state, seg_mask):
     squeeze_w = np.reshape(squeeze_w, (n_seg, -1))
     image = segment.recreate_image(seg_mask, squeeze_w)
     return image
+
+

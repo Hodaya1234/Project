@@ -1,78 +1,11 @@
 import torch
 import numpy as np
-import torch.utils.data as data_utils
 from torch import optim
 from torch import nn
-
-
-class SimpleNet(torch.nn.Module):
-    def __init__(self, D_in, H1, H2, H3, D_out):
-        super(SimpleNet, self).__init__()
-        self.linear1 = nn.Linear(D_in, H1)
-        self.linear2 = nn.Linear(D_in, H2)
-        self.linear3 = nn.Linear(H2, H3)
-        self.linear4 = nn.Linear(H2, D_out)
-        self.relu = nn.ReLU()
-        self.drop = nn.Dropout(p=0.5)
-
-    def forward(self, x):
-        x = self.relu(self.linear1(x))
-        x = self.relu(self.linear2(x))
-        x = self.relu(self.linear3(x))
-        x = torch.sigmoid(self.linear4(x))
-        return x
-
-
-class DataSet(data_utils.Dataset):
-    def __init__(self, x, y):
-        super(DataSet, self).__init__()
-        self.all_x = x
-        self.all_y = y
-        self.n_data = len(y)
-
-    def __getitem__(self, index):
-        x = self.all_x[index]
-        y = self.all_y[index]
-        return x, y
-
-    def __len__(self):
-        return len(self.all_y)
-
-    def change_device(self, device):
-        return DataSet(self.all_x.to(device), self.all_y.to(device))
-
-    def normalize(self):
-        mean_x = self.all_x.mean().item()
-        std_x = self.all_x.std().item()
-        return DataSet(torch.div(torch.sub(self.all_x, mean_x), std_x), self.all_y)
-
-
-def data_to_cuda(data_sets, device, cv=True):
-    new_data = []
-    if cv:
-        for set_type in data_sets:
-            set_type_list = []
-            for one_dataset in set_type:
-                set_type_list.append(one_dataset.change_device(device))
-            new_data.append(set_type_list)
-    else:
-        for s in data_sets:
-            new_data.append(s.change_device(device))
-    return new_data
-
-
-def normalize_datasets(data_sets, cv=True):
-    new_data = []
-    if cv:
-        for set_type in data_sets:
-            set_type_list = []
-            for one_dataset in set_type:
-                set_type_list.append(one_dataset.normalize())
-            new_data.append(set_type_list)
-    else:
-        for s in data_sets:
-            new_data.append(s.normalize())
-    return new_data
+from dense_net import DenseNet
+from data_set import DataSet
+import torch.utils.data as data_utils
+import data_set
 
 
 def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, scheduler, loss_fn, n_epochs, cv):
@@ -156,22 +89,14 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
     return model, train_losses, valid_losses, test_losses
 
 
-def run_model(data_sets, cv=True, norm=True):
+def run_model(model, data_sets, cv=True, norm=True):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("available devices: {}".format(torch.cuda.device_count()))
-    train_dataset, valid_dataset, test_dataset = data_to_cuda(data_sets, device, cv)  # DataSet objects
+    train_dataset, valid_dataset, test_dataset = data_set.data_to_cuda(data_sets, device, cv)  # DataSet objects
     if norm:
-        train_dataset, valid_dataset, test_dataset = normalize_datasets([train_dataset, valid_dataset, test_dataset], cv)
-    if cv:
-        D_in = train_dataset[0].all_x.shape[1]
-    else:
-        D_in = train_dataset.all_x.shape[1]
-    H1 = 500
-    H2 = 100
-    H3 = 50
-    D_out = 1
+        train_dataset, valid_dataset, test_dataset = data_set.normalize_datasets([train_dataset, valid_dataset, test_dataset], cv)
 
-    model = SimpleNet(D_in, H1, H2, H3, D_out).double().to(device)
+    model = model.double().to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [150])
     loss_fn = nn.BCELoss()
@@ -181,5 +106,42 @@ def run_model(data_sets, cv=True, norm=True):
                                                                       valid_dataset, train_dataset, optimizer,
                                                                       scheduler, loss_fn, n_epochs, cv=cv)
 
-    return model.state_dict(), train_losses, validation_losses, test_losses
+    return model, train_losses, validation_losses, test_losses
 
+
+def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):
+    outputs = model(test_x)
+    outputs = outputs.view(outputs.numel())
+    mean_loss = loss_fn(outputs, test_y.double()).item()
+
+    predictions = torch.round(outputs).int().view(outputs.numel())
+    accuracy = (predictions == test_y.int()).sum().item()
+    return accuracy, mean_loss
+
+
+def run_with_missing_segments(model, segments_map, test_set, cv):
+    seg_numbers = np.unique(segments_map)
+    if seg_numbers[0] == 0:
+        seg_numbers = seg_numbers[1:]
+    seg_acc_map = np.zeros(len(seg_numbers))
+    seg_loss_map = np.copy(seg_acc_map)
+
+    if cv:
+        # test_x: n_examples X n_segments X n_frames
+
+        for one_test_set in test_set:
+            for idx, num in enumerate(seg_numbers):
+                new_test_x = one_test_set.all_x.clone()
+                new_test_x[:, idx, ] = 0  # is 0 the right choice here?
+                curr_acc, curr_loss = test_model(model, new_test_x, one_test_set.all_y)
+                seg_acc_map[idx] += curr_acc
+                seg_loss_map[idx] += curr_loss
+        seg_acc_map = np.divide(seg_acc_map, len(test_set))
+        seg_loss_map = np.divide(seg_loss_map, len(test_set))
+    else:
+        for idx, num in enumerate(seg_numbers):
+            new_test_x = test_set.all_x.clone()
+            new_test_x[:, idx, ] = 0  # is 0 the right choice here?
+            seg_acc_map[idx], seg_loss_map[idx] = test_model(model, new_test_x, test_set.all_y)
+
+    return seg_acc_map, seg_loss_map

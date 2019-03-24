@@ -1,8 +1,7 @@
 import numpy as np
 import augment
 import torch
-from model import DataSet
-from scipy import stats
+from data_set import DataSet
 
 
 def turn_to_torch_dataset(data_sets, cv=True):
@@ -14,12 +13,15 @@ def turn_to_torch_dataset(data_sets, cv=True):
     """
     if not cv:
         train_x, train_y, validation_x, validation_y, test_x, test_y = data_sets
+        # TODO get the d_in out of here
+        D_in = train_x.shape[1]
         train = DataSet(torch.from_numpy(train_x), torch.from_numpy(train_y))
         valid = DataSet(torch.from_numpy(validation_x), torch.from_numpy(validation_y))
         test = DataSet(torch.from_numpy(test_x), torch.from_numpy(test_y))
-        return train, valid, test
+        return train, valid, test, D_in
     else:
         train_sets_x, train_y, validation_sets_x, valid_y, test_sets_x, test_y = data_sets
+        D_in = train_sets_x[0].shape[1]
         train = []
         valid = []
         test = []
@@ -30,7 +32,7 @@ def turn_to_torch_dataset(data_sets, cv=True):
             valid.append(DataSet(torch.from_numpy(v), valid_y))
         for te in test_sets_x:
             test.append(DataSet(torch.from_numpy(te), test_y))
-        return train, valid, test
+        return train, valid, test, D_in
 
 
 def get_train_test_indices(n_total, n_train, n_test):

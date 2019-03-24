@@ -54,6 +54,7 @@ import visualize_res
 import segment
 import create_data_set
 from scipy import io as sio
+import dense_net
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_filename", help="path to the data file. mat or npz.")
@@ -83,8 +84,10 @@ elif flag == "seg":
     mask, seg_v, seg_h = data
 elif flag == "set":
     data_sets = data
-elif flag == "res":
-    model_state, train_losses, validation_losses, test_losses = data
+elif flag == "los":
+    train_losses, validation_losses, test_losses = data
+elif flag == "net":
+    net = data
 
 #################################################################################
 # SEGMENTS
@@ -106,12 +109,22 @@ if flag == "raw" or flag == "seg":
 # MODEL
 if flag == "raw" or flag == "seg" or flag == "set":
     print('running the model')
-    train, valid, test = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
-    model_state, train_losses, validation_losses, test_losses = model.run_model([train, valid, test], cv=cv)
-    data_io.save_to([model_state, train_losses, validation_losses, test_losses], "temp_outputs/res.npz", "res")
+    train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+    net = dense_net.get_model(D_in)
+    net, train_losses, validation_losses, test_losses = model.run_model(net, [train, valid, test], cv=cv)
+    data_io.save_to([train_losses, validation_losses, test_losses], "temp_outputs/los.npz", "los")
+    data_io.save_to(net, "temp_outputs/net.pt", "net")
 #################################################################################
 
+net = data_io.read_from_file("temp_outputs/net.pt", "net")
 mask, _, _ = data_io.read_from_file("temp_outputs/seg.npz", "seg")
+data_sets = data_io.read_from_file("temp_outputs/set.npz", "set")
+
+_, _, test_set, _ = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+seg_acc_map, seg_loss_map = model.run_with_missing_segments(net, mask, test_set, cv)
+image = segment.recreate_image(mask, seg_loss_map)
+sio.savemat('temp_outputs/vis_test', {'image': image})
+
 # image = visualize_res.plot_weights(model_state, mask)
 # sio.savemat("temp_outputs/test_vis", {'vis':image})
 # visualize_res.plot_losses(train_losses, validation_losses, test_losses)

@@ -12,6 +12,7 @@ import numpy as np
 from collections import OrderedDict
 import torch
 
+
 def read_from_file(filename, flag):
     """
     Read input data, either as raw in the beginning, or as variables from the middle of the process.
@@ -43,9 +44,10 @@ def read_from_file(filename, flag):
         return file['mask'], file['seg_v'], file['seg_h']
     if flag == 'set':
         return file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
-    if flag == 'res':
-        model_state = file['model']
-        return model_state[()], file['train_losses'], file['validation_losses'], file['test_losses']
+    if flag == 'los':
+        return file['train_losses'], file['validation_losses'], file['test_losses']
+    if flag == 'net':
+        return torch.load(filename)
 
 
 def save_to(data, filename, flag):
@@ -79,11 +81,10 @@ def save_to(data, filename, flag):
         train_x, train_y, valid_x, valid_y, test_x, test_y = data
         np.savez(
             filename, train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
-    if flag == 'res':
-        model, train_losses, validation_losses, test_losses = data
-        model_np = OrderedDict()
-        for key, value in model.items():
-            model_np[key] = value.numpy()
-        np.savez(filename,
-                 model=model_np, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses)
+    if flag == 'los':
+        train_losses, validation_losses, test_losses = data
+        np.savez(filename, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses)
         return
+    if flag == 'net':
+        net = data
+        torch.save(net, filename)
