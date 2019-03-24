@@ -36,8 +36,8 @@ def turn_to_torch_dataset(data_sets, cv=True):
 
 
 def get_train_test_indices(n_total, n_train, n_test):
-    total_indices = np.random.randint(0, n_total, n_train + n_test)
-    test_indices_from_total = np.random.randint(0, n_train + n_test, n_test)
+    total_indices = np.random.choice(n_total, n_train + n_test, replace=False)
+    test_indices_from_total = np.random.choice(n_train + n_test, n_test, replace=False)
     test_indices = total_indices[test_indices_from_total]
     train_indices = np.delete(total_indices, test_indices_from_total)
     return train_indices, test_indices
@@ -57,7 +57,6 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
     :return: A list of the three data-sets, including the y targets.
     """
     if cv:
-        n_test = 1
         train_sets_x = []
         validation_sets_x = []
         test_sets_x = []
@@ -68,9 +67,15 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
         for i in range(min(n_v, n_h)):
             train_indices_v, test_indices_v = get_train_test_indices(n_v, train_set_size, n_test)
             train_indices_h, test_indices_h = get_train_test_indices(n_h, train_set_size, n_test)
+            if n_test == 1:
+                test_v = np.expand_dims(seg_v[:, :, test_indices_v], axis=0)
+                test_h = np.expand_dims(seg_h[:, :, test_indices_h], axis=0)
+            else:
+                test_v = np.transpose(seg_v[:, :, test_indices_v], (2, 0, 1))
+                test_h = np.transpose(seg_h[:, :, test_indices_h], (2, 0, 1))
 
-            test_x = np.concatenate((np.expand_dims(seg_v[:, :, test_indices_v], axis=0),
-                                     np.expand_dims(seg_h[:, :, test_indices_h], axis=0)), 0)
+            test_x = np.concatenate((test_v, test_h), 0)
+            print('finished test number' + str(i))
 
             param_v = augment.get_parameters(seg_v[:, :, train_indices_v])
             curr_train_v = augment.get_new_data(param_v, n_train)
@@ -82,6 +87,7 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
 
             train_x = np.concatenate((curr_train_v, curr_train_h), 0)
             valid_x = np.concatenate((curr_valid_v, curr_valid_h), 0)
+            print('finished train number' + str(i))
             if flat_x:
                 train_x = np.reshape(train_x, (n_train * 2, -1))
                 valid_x = np.reshape(valid_x, (n_valid * 2, -1))
