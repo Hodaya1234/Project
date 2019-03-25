@@ -60,7 +60,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("data_filename", help="path to the data file. mat or npz.")
 parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(28, 55)),
                     help="a list of integers of the frames to process.")
-parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(28, 55)),
+parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(30, 50)),
                     help="a list of integers of the frames to process.")
 parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
                                                                            "raw: in the beginning."
@@ -102,7 +102,7 @@ if flag == "raw":
 if flag == "raw" or flag == "seg":
     print('creating data sets')
     data_sets = create_data_set.get_data(
-        seg_v, seg_h, n_train=5, n_valid=5, n_test=1, cv=cv, flat_x=True, to_tensor=False)
+        seg_v, seg_h, n_train=50, n_valid=5, n_test=1, cv=cv, flat_x=True, to_tensor=False)
     # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, "temp_outputs/set.npz", "set")
 #################################################################################
@@ -120,6 +120,8 @@ net = data_io.read_from_file("temp_outputs/net.pt", "net")
 mask, _, _ = data_io.read_from_file("temp_outputs/seg.npz", "seg")
 data_sets = data_io.read_from_file("temp_outputs/set.npz", "set")
 
+train_losses, validation_losses, test_losses = data_io.read_from_file("temp_outputs/los.npz", "los")
+visualize_res.plot_losses(train_losses, validation_losses, test_losses)
 _, _, test_set, _ = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
 seg_acc_map, seg_loss_map = model.run_with_missing_segments(net, mask, test_set, cv)
 image = segment.recreate_image(mask, seg_loss_map)
