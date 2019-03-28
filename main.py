@@ -58,7 +58,7 @@ import dense_net
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_folder", help="path to the data file. mat or npz.")
-parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(28, 55)),
+parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(30, 55)),
                     help="a list of integers of the frames to process.")
 parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(30, 55)),
                     help="a list of integers of the frames to process.")

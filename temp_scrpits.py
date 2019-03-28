@@ -8,17 +8,22 @@ import create_data_set
 import scipy.io as sio
 import segment
 
-data_set = np.load('temp_outputs/set.npz')
 
-train_x = data_set['train_x']
-seg_file = np.load('temp_outputs/seg.npz')
-segs = seg_file['mask']
-n_seg = len(np.unique(segs)) - 1
-train_x = train_x.T  # n_segs X n_examples
-n_data = train_x.shape[1]
-train_x = train_x.reshape((n_seg, -1, n_data)) # n_seg, n_frames, n_examples
-train_x = segment.recreate_image(segs, train_x)
-sio.savemat('temp_outputs/mat_train', {'train': train_x})
+segs = np.load('temp_outputs/2511-ret/seg.npz')
+mask = segs['mask']
+sio.savemat('test_vis', {'mask':mask})
+
+# data_set = np.load('temp_outputs/set.npz')
+#
+# train_x = data_set['train_x']
+# seg_file = np.load('temp_outputs/seg.npz')
+# segs = seg_file['mask']
+# n_seg = len(np.unique(segs)) - 1
+# train_x = train_x.T  # n_segs X n_examples
+# n_data = train_x.shape[1]
+# train_x = train_x.reshape((n_seg, -1, n_data)) # n_seg, n_frames, n_examples
+# train_x = segment.recreate_image(segs, train_x)
+# sio.savemat('temp_outputs/mat_train', {'train': train_x})
 
 
 # set_file = np.load('temp_outputs/seg.npz')

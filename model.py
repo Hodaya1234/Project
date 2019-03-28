@@ -21,32 +21,38 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
             scheduler.step()
             for one_train_loader, one_valid_set, one_test_set in zip(train_loaders, valid_dataset, test_dataset):
                 epoch_train_loss = []
+                epoch_valid_loss = []
+                epoch_test_loss = []
                 model.train()
                 for x, y in one_train_loader:
                     optimizer.zero_grad()
                     y_pred = model(x)
                     y_pred = y_pred.view(y_pred.numel())
-                    train_loss = loss_fn(y_pred, y)
-                    train_loss.backward()
+                    loss = loss_fn(y_pred, y)
+                    loss.backward()
                     optimizer.step()
-                    epoch_train_loss.append(train_loss.item())
-                train_loss_mean = sum(epoch_train_loss) / len(epoch_train_loss)
-                train_losses.append(train_loss_mean)
+                    epoch_train_loss.append(loss.item())
+
                 model.eval()
                 outputs = model(one_valid_set.all_x)
                 outputs = outputs.view(outputs.numel())
-                valid_loss_mean = loss_fn(outputs, one_valid_set.all_y).item()
-                valid_losses.append(valid_loss_mean)
+                loss = loss_fn(outputs, one_valid_set.all_y).item()
+                epoch_valid_loss.append(loss)
 
                 outputs = model(one_test_set.all_x)
                 outputs = outputs.view(outputs.numel())
-                test_loss_mean = loss_fn(outputs, one_test_set.all_y).item()
-                test_losses.append(test_loss_mean)
+                loss = loss_fn(outputs, one_test_set.all_y).item()
+                epoch_test_loss.append(loss)
+
+                train_losses.append(sum(epoch_train_loss) / len(epoch_train_loss))
+                valid_losses.append(sum(epoch_valid_loss) / len(epoch_valid_loss))
+                test_losses.append(sum(epoch_test_loss) / len(epoch_test_loss))
+
             if e % 2 == 0:
                 print("{}. train loss: {}   valid_loss: {}  test_loss: {}".format(
-                    e, train_loss_mean, valid_loss_mean, test_loss_mean))
-                test_y_int = one_test_set.all_y.int()
-                outputs = model(one_test_set.all_x)
+                    e, train_losses[-1], valid_losses[-1], test_losses[-1]))
+                test_y_int = test_dataset[0].all_y.int()
+                outputs = model(test_dataset[0].all_x)
                 outputs = outputs.view(outputs.numel())
                 predictions = torch.round(outputs).int().view(outputs.numel())
                 correct = (predictions == test_y_int).sum().item()
@@ -66,19 +72,19 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
                 optimizer.zero_grad()
                 y_pred = model(x)
                 y_pred = y_pred.view(y_pred.numel())
-                train_loss = loss_fn(y_pred, y)
-                train_loss.backward()
+                loss = loss_fn(y_pred, y)
+                loss.backward()
                 optimizer.step()
-                epoch_train_loss.append(train_loss.item())
+                epoch_train_loss.append(loss.item())
             train_loss_mean = sum(epoch_train_loss) / len(epoch_train_loss)
             train_losses.append(train_loss_mean)
             model.eval()
             outputs = model(valid_dataset.all_x)
             outputs = outputs.view(outputs.numel())
-            test_loss_mean = loss_fn(outputs, valid_dataset.all_y).item()
-            valid_losses.append(test_loss_mean)
+            loss = loss_fn(outputs, valid_dataset.all_y).item()
+            valid_losses.append(loss)
             if e % 10 == 0:
-                print("{}. train loss: {}   test_loss: {}".format(e, train_loss_mean, test_loss_mean))
+                print("{}. train loss: {}   test_loss: {}".format(e, train_loss_mean, loss))
                 correct = 0
                 predictions = torch.round(outputs).int().view(outputs.numel())
                 correct += (predictions == valid_y_int).sum().item()
@@ -98,9 +104,9 @@ def run_model(model, data_sets, cv=True, norm=True):
 
     model = model.double().to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [30])
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [10])
     loss_fn = nn.BCELoss()
-    n_epochs = 50
+    n_epochs = 20
 
     model, train_losses, validation_losses, test_losses = train_model(model, train_dataset,
                                                                       valid_dataset, train_dataset, optimizer,
