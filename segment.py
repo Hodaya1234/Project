@@ -81,6 +81,7 @@ def divide_data_to_segments(segments_matrix, raw_data, frames_for_data, keep_bac
             segmented_data[idx] = np.nanmean(data_for_seg[pixel_indexes], axis=0)
     if keep_background:
         segmented_data[np.isnan(segmented_data)] = 0
+    # TODO: transpose the data and adjust all the relevant functions
     return segmented_data
 
 

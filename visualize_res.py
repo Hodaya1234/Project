@@ -5,11 +5,11 @@ import segment
 
 def plot_losses(train_losses, validation_losses, test_losses):
     plt.figure()
-    plt.plot(train_losses, label="train loss")
-    plt.plot(validation_losses, label="validation loss")
-    plt.plot(test_losses, label="test loss")
+    plt.plot(train_losses, label="train")
+    plt.plot(validation_losses, label="validation")
+    plt.plot(test_losses, label="test (original examples left out)")
     plt.legend()
-    plt.savefig('losses')
+    plt.title('Losses as a Function of Epochs')
     plt.show()
 
 
@@ -27,4 +27,17 @@ def plot_weights(model_state, seg_mask):
     image = segment.recreate_image(seg_mask, squeeze_w)
     return image
 
+
+def plot_frame(frame, title):
+    if np.array_equal(frame.shape, [1, 10000]) or np.array_equal(frame.shape, [10000, 1]) or np.array_equal(frame.shape, [10000,]):
+        new_frame = np.reshape(frame, (100, 100))
+    elif not np.array_equal(frame.shape, (100, 100)):
+        return
+    else:
+        new_frame = np.copy(frame)
+    plt.figure()
+    plt.title(title)
+    plt.imshow(new_frame, vmin=np.min(new_frame[new_frame > 0]), vmax=np.max(new_frame))
+    plt.colorbar()
+    plt.show()
 

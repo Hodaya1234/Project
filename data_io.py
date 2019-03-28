@@ -13,11 +13,11 @@ from collections import OrderedDict
 import torch
 
 
-def read_from_file(filename, flag):
+def read_from_file(folder_name, flag):
     """
     Read input data, either as raw in the beginning, or as variables from the middle of the process.
     This can save double calculation when it is needed to redo only a part of the program.
-    :param filename: A relative path to the file of the data. In the formats .mat/.npy/.npz.
+    :param folder_name: A relative path to the file of the data.
     :param flag: Denotes which part of the script the following data is relevant to.
     types:
     a. raw:
@@ -34,28 +34,28 @@ def read_from_file(filename, flag):
         The results of the model.
     :return: numpy ndarrays with the extracted data from the file.
     """
-    if filename[-3:] == 'mat':      # Matlab file
-        file = sio.loadmat(filename)
-    else:                           # numpy file - .npy or .npz
-        file = np.load(filename)
     if flag == 'raw':
+        file = sio.loadmat(folder_name + "/clean.mat")
         return file['clean_vert'], file['clean_horiz']
     if flag == 'seg':
+        file = np.load(folder_name + "/seg.npz")
         return file['mask'], file['seg_v'], file['seg_h']
     if flag == 'set':
+        file = np.load(folder_name + "/set.npz")
         return file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
     if flag == 'los':
+        file = np.load(folder_name + "/los.npz")
         return file['train_losses'], file['validation_losses'], file['test_losses']
     if flag == 'net':
-        return torch.load(filename)
+        return torch.load(folder_name + "/net.pt")
 
 
-def save_to(data, filename, flag):
+def save_to(data, folder_name, flag):
     """
     Save the data in .npy or .npz format in order to save calculations when only a part of the process need to be
     redone.
     :param data: An array or list of arrays to be saved.
-    :param filename: A relative path to save the data to.
+    :param folder_name: A relative path to save the data to.
     :param flag: Indicates what's the type of data that needs to be saved.
     types:
     a. raw:
@@ -71,20 +71,20 @@ def save_to(data, filename, flag):
         The results of the model.
     :return:
     """
-    if flag == 'raw':
-        np.savez(filename, clean_horiz=data['clean_horiz'], clean_vert=data['clean_vert'],
-                 clean_blank=data['clean_blank'])
+    # if flag == 'raw':
+    #     np.savez(folder_name, clean_horiz=data['clean_horiz'], clean_vert=data['clean_vert'],
+    #              clean_blank=data['clean_blank'])
     if flag == 'seg':
         mask, seg_v, seg_h = data
-        np.savez(filename, mask=mask, seg_v=seg_v, seg_h=seg_h)
+        np.savez(folder_name + "/seg", mask=mask, seg_v=seg_v, seg_h=seg_h)
     if flag == 'set':
         train_x, train_y, valid_x, valid_y, test_x, test_y = data
         np.savez(
-            filename, train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
+            folder_name + "/set", train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
     if flag == 'los':
         train_losses, validation_losses, test_losses = data
-        np.savez(filename, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses)
+        np.savez(folder_name + "/los", train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses)
         return
     if flag == 'net':
         net = data
-        torch.save(net, filename)
+        torch.save(net, folder_name + "/net.pt")
