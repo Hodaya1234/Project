@@ -55,12 +55,13 @@ import segment
 import create_data_set
 from scipy import io as sio
 import dense_net
+import data_set
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_folder", help="path to the data file. mat or npz.")
 parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(29, 44)),
                     help="a list of integers of the frames to process.")
-parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(29, 44)),
+parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(29, 40)),
                     help="a list of integers of the frames to process.")
 parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
                                                                            "raw: in the beginning."
@@ -110,22 +111,30 @@ if flag == "raw" or flag == "seg":
 if flag == "raw" or flag == "seg" or flag == "set":
     print('running the model')
     train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+    train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
     net = dense_net.get_model(D_in)
+    # net = dense_net.init_weights(net)
     net, train_losses, validation_losses, test_losses = model.run_model(net, [train, valid, test], cv=cv)
     data_io.save_to([train_losses, validation_losses, test_losses], folder, "los")
     data_io.save_to(net, folder, "net")
 #################################################################################
 
+# TODO organize this
 net = data_io.read_from_file(folder, "net")
 mask, _, _ = data_io.read_from_file(folder, "seg")
 data_sets = data_io.read_from_file(folder, "set")
 
-train_losses, validation_losses, test_losses = data_io.read_from_file(folder, "los")
-visualize_res.plot_losses(train_losses, validation_losses, test_losses)
-_, _, test_set, _ = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
-seg_acc_map, seg_loss_map = model.run_with_missing_segments(net, mask, test_set, cv)
+# train_losses, validation_losses, test_losses = data_io.read_from_file(folder, "los")
+# visualize_res.plot_losses(train_losses, validation_losses, test_losses, len(data_sets))
+
+train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
+
+seg_acc_map, seg_loss_map = model.run_with_missing_segments(net, mask, train, cv)
 image = segment.recreate_image(mask, seg_loss_map)
 visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
+
+
 
 # sio.savemat('temp_outputs/vis_test', {'image': image})
 

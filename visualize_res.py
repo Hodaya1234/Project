@@ -3,13 +3,18 @@ from matplotlib import pyplot as plt
 import segment
 
 
-def plot_losses(train_losses, validation_losses, test_losses):
+def plot_losses(train_losses, validation_losses, test_losses, n_data_sets):
+    places = [i for i in range(len(train_losses)) if i % n_data_sets == 0]
+    labels = [str(i) for i in range(int(np.ceil(len(train_losses / n_data_sets))))]
     plt.figure()
     plt.plot(train_losses, label="train")
     plt.plot(validation_losses, label="validation")
     plt.plot(test_losses, label="test (original examples left out)")
+    plt.xticks(places, labels)
     plt.legend()
     plt.title('Losses as a Function of Epochs')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
     plt.show()
 
 

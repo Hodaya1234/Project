@@ -17,7 +17,7 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
         train_loaders = []
         for train_d in train_dataset:
             train_loaders.append(data_utils.DataLoader(train_d, batch_size=8, shuffle=True))
-        for e in range(n_epochs + 1):
+        for e in range(n_epochs):
             scheduler.step()
             for one_train_loader, one_valid_set, one_test_set in zip(train_loaders, valid_dataset, test_dataset):
                 epoch_train_loss = []
@@ -95,18 +95,16 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
     return model, train_losses, valid_losses, test_losses
 
 
-def run_model(model, data_sets, cv=True, norm=True):
+def run_model(model, data_sets, cv=True):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("available devices: {}".format(torch.cuda.device_count()))
     train_dataset, valid_dataset, test_dataset = data_set.data_to_cuda(data_sets, device, cv)  # DataSet objects
-    if norm:
-        train_dataset, valid_dataset, test_dataset = data_set.normalize_datasets([train_dataset, valid_dataset, test_dataset], cv)
 
     model = model.double().to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [5])
     loss_fn = nn.BCELoss()
-    n_epochs = 10
+    n_epochs = 15
 
     model, train_losses, validation_losses, test_losses = train_model(model, train_dataset,
                                                                       valid_dataset, train_dataset, optimizer,
@@ -129,25 +127,37 @@ def run_with_missing_segments(model, segments_map, test_set, cv):
     seg_numbers = np.unique(segments_map)
     if seg_numbers[0] == 0:
         seg_numbers = seg_numbers[1:]
-    seg_acc_map = np.zeros(len(seg_numbers))
+    n_seg = len(seg_numbers)
+    seg_acc_map = np.zeros(n_seg)
     seg_loss_map = np.copy(seg_acc_map)
 
     if cv:
         # test_x: n_examples X n_segments X n_frames
 
         for one_test_set in test_set:
+            test_x = one_test_set.all_x
+            n_points = test_x.shape[1]
+            n_frames = int(n_points / n_seg)
+            test_x = np.reshape(test_x, (-1, n_seg, n_frames))
             for idx, num in enumerate(seg_numbers):
-                new_test_x = one_test_set.all_x.clone()
-                new_test_x[:, idx, ] = 0  # is 0 the right choice here?
+                new_test_x = test_x.clone()
+                # indices = segments_map == num
+                new_test_x[:, idx, :] = 0
+                new_test_x = np.reshape(new_test_x, (-1, n_points))
+
                 curr_acc, curr_loss = test_model(model, new_test_x, one_test_set.all_y)
                 seg_acc_map[idx] += curr_acc
                 seg_loss_map[idx] += curr_loss
         seg_acc_map = np.divide(seg_acc_map, len(test_set))
         seg_loss_map = np.divide(seg_loss_map, len(test_set))
     else:
+        n_points = test_set.all_x.shape[1]
+        n_frames = int(n_points / n_seg)
+        test_x = np.reshape(test_set.all_x, (-1, n_seg, n_frames))
         for idx, num in enumerate(seg_numbers):
-            new_test_x = test_set.all_x.clone()
-            new_test_x[:, idx, ] = 0  # is 0 the right choice here?
+            new_test_x = test_x.clone()
+            new_test_x = np.reshape(new_test_x, (-1, n_points))
+            new_test_x[:, idx, :] = 0
             seg_acc_map[idx], seg_loss_map[idx] = test_model(model, new_test_x, test_set.all_y)
 
     return seg_acc_map, seg_loss_map
