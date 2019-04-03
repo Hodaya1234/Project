@@ -59,9 +59,9 @@ import data_set
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_folder", help="path to the data file. mat or npz.")
-parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(29, 44)),
+parser.add_argument("-fr_seg", action="store", dest="frames_seg", nargs='+', type=int, default=list(range(27, 49)),
                     help="a list of integers of the frames to process.")
-parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(29, 40)),
+parser.add_argument("-fr_data", action="store", dest="frames_data", nargs='+', type=int, default=list(range(27, 49)),
                     help="a list of integers of the frames to process.")
 parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
                                                                            "raw: in the beginning."
@@ -130,9 +130,13 @@ data_sets = data_io.read_from_file(folder, "set")
 train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
 train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
-seg_acc_map, seg_loss_map = model.run_with_missing_segments(net, mask, train, cv)
-image = segment.recreate_image(mask, seg_loss_map)
+
+loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames_data), part_type='frames')
+visualize_res.plot_frame_loss(loss_map, [x+1 for x in frames_data])  # counting starts from 0, so the relevant frames are +1
+loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames_data), part_type='segments')
+image = segment.recreate_image(mask, loss_map)
 visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
+
 
 
 

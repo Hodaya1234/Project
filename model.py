@@ -102,7 +102,7 @@ def run_model(model, data_sets, cv=True):
 
     model = model.double().to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [5])
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [7])
     loss_fn = nn.BCELoss()
     n_epochs = 15
 
@@ -123,33 +123,35 @@ def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):
     return accuracy, mean_loss
 
 
-def run_with_missing_segments(model, segments_map, test_set, cv):
+def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_type='segments', value_type='loss'):
     seg_numbers = np.unique(segments_map)
     if seg_numbers[0] == 0:
         seg_numbers = seg_numbers[1:]
     n_seg = len(seg_numbers)
-    seg_acc_map = np.zeros(n_seg)
-    seg_loss_map = np.copy(seg_acc_map)
+    n_points = n_frames * n_seg
+    if part_type == 'segments':
+        loss_map = np.zeros(n_seg)
+    else:
+        loss_map = np.zeros(n_frames)
 
     if cv:
-        # test_x: n_examples X n_segments X n_frames
-
+        # test_x: n_examples X n_segments * n_frames
         for one_test_set in test_set:
             test_x = one_test_set.all_x
-            n_points = test_x.shape[1]
-            n_frames = int(n_points / n_seg)
             test_x = np.reshape(test_x, (-1, n_seg, n_frames))
-            for idx, num in enumerate(seg_numbers):
+            for idx in range(len(loss_map)):
                 new_test_x = test_x.clone()
-                # indices = segments_map == num
-                new_test_x[:, idx, :] = 0
+                if part_type == 'segments':
+                    new_test_x[:, idx, :] = 0
+                else:
+                    new_test_x[:, :, idx] = 0
                 new_test_x = np.reshape(new_test_x, (-1, n_points))
-
                 curr_acc, curr_loss = test_model(model, new_test_x, one_test_set.all_y)
-                seg_acc_map[idx] += curr_acc
-                seg_loss_map[idx] += curr_loss
-        seg_acc_map = np.divide(seg_acc_map, len(test_set))
-        seg_loss_map = np.divide(seg_loss_map, len(test_set))
+                if value_type == 'loss':
+                    loss_map[idx] += curr_loss
+                else:
+                    loss_map[idx] += curr_acc
+        loss_map = np.divide(loss_map, len(test_set))
     else:
         n_points = test_set.all_x.shape[1]
         n_frames = int(n_points / n_seg)
@@ -158,6 +160,6 @@ def run_with_missing_segments(model, segments_map, test_set, cv):
             new_test_x = test_x.clone()
             new_test_x = np.reshape(new_test_x, (-1, n_points))
             new_test_x[:, idx, :] = 0
-            seg_acc_map[idx], seg_loss_map[idx] = test_model(model, new_test_x, test_set.all_y)
+            loss_map[idx], loss_map[idx] = test_model(model, new_test_x, test_set.all_y)
 
-    return seg_acc_map, seg_loss_map
+    return loss_map

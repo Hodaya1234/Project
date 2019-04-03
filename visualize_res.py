@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import segment
-
+import scipy.io as sio
 
 def plot_losses(train_losses, validation_losses, test_losses, n_data_sets):
     places = [i for i in range(len(train_losses)) if i % n_data_sets == 0]
@@ -33,7 +33,7 @@ def plot_weights(model_state, seg_mask):
     return image
 
 
-def plot_frame(frame, title):
+def plot_frame(frame, title, focus_on_high=False):
     if np.array_equal(frame.shape, [1, 10000]) or np.array_equal(frame.shape, [10000, 1]) or np.array_equal(frame.shape, [10000,]):
         new_frame = np.reshape(frame, (100, 100))
     elif not np.array_equal(frame.shape, (100, 100)):
@@ -42,7 +42,21 @@ def plot_frame(frame, title):
         new_frame = np.copy(frame)
     plt.figure()
     plt.title(title)
-    plt.imshow(new_frame, vmin=np.min(new_frame[new_frame > 0]), vmax=np.max(new_frame))
+    min_val = np.min(new_frame[new_frame > 0])
+    max_val = np.max(new_frame)
+    if focus_on_high:
+        min_val = (3*min_val + max_val)/4
+    sio.savemat('loss_map', {'map':new_frame})
+    plt.imshow(new_frame, vmin=min_val, vmax=max_val)
     plt.colorbar()
+    plt.show()
+
+
+def plot_frame_loss(losses, frames):
+    plt.figure()
+    plt.plot(frames, losses)
+    plt.xlabel('frame number')
+    plt.ylabel('average loss')
+    plt.title('Loss Per Missing Frame')
     plt.show()
 
