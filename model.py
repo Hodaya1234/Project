@@ -16,7 +16,7 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
     if cv:
         train_loaders = []
         for train_d in train_dataset:
-            train_loaders.append(data_utils.DataLoader(train_d, batch_size=8, shuffle=True))
+            train_loaders.append(data_utils.DataLoader(train_d, batch_size=16, shuffle=True))
         for e in range(n_epochs):
             scheduler.step()
             for one_train_loader, one_valid_set, one_test_set in zip(train_loaders, valid_dataset, test_dataset):
@@ -104,7 +104,7 @@ def run_model(model, data_sets, cv=True):
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [7])
     loss_fn = nn.BCELoss()
-    n_epochs = 15
+    n_epochs = 10
 
     model, train_losses, validation_losses, test_losses = train_model(model, train_dataset,
                                                                       valid_dataset, train_dataset, optimizer,

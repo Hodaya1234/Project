@@ -39,7 +39,7 @@ def read_from_file(folder_name, flag):
         return file['clean_vert'], file['clean_horiz']
     if flag == 'seg':
         file = np.load(folder_name + "/seg.npz")
-        return file['mask'], file['seg_v'], file['seg_h']
+        return file['mask'], file['seg_v'], file['seg_h'], file['n_frames']
     if flag == 'set':
         file = np.load(folder_name + "/set.npz")
         return file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
@@ -75,8 +75,8 @@ def save_to(data, folder_name, flag):
     #     np.savez(folder_name, clean_horiz=data['clean_horiz'], clean_vert=data['clean_vert'],
     #              clean_blank=data['clean_blank'])
     if flag == 'seg':
-        mask, seg_v, seg_h = data
-        np.savez(folder_name + "/seg", mask=mask, seg_v=seg_v, seg_h=seg_h)
+        mask, seg_v, seg_h, n_frames = data
+        np.savez(folder_name + "/seg", mask=mask, seg_v=seg_v, seg_h=seg_h, n_frames=n_frames)
     if flag == 'set':
         train_x, train_y, valid_x, valid_y, test_x, test_y = data
         np.savez(

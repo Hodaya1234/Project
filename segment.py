@@ -41,7 +41,7 @@ def vert_horiz_seg(vert, horiz, frames_for_seg, square=False):
     return all_segments
 
 
-def divide_data_to_segments(segments_matrix, raw_data, frames_for_data, keep_background=False):
+def divide_data_to_segments(segments_matrix, raw_data, keep_background=False):
     """
     Take the original data and the segments mask matrix and create a segmented data
     :param segments_matrix: [100 X 100] integer mask
@@ -52,7 +52,6 @@ def divide_data_to_segments(segments_matrix, raw_data, frames_for_data, keep_bac
     # if the first two dimension are 100X100 turn them to 10,000:
     data_for_seg = np.copy(raw_data)
     data_for_seg = change_data_dim(data_for_seg, to_array=True)
-    data_for_seg = data_for_seg[:, frames_for_data, :]
 
     seg_numbers = np.unique(segments_matrix)
     if seg_numbers[0] == 0:
