@@ -79,6 +79,7 @@ frames_data = frames_seg
 flag = args.flag
 should_down_sample = args.ds
 cv = True
+no_net = True
 
 #################################################################################
 # READ THE DATA
@@ -103,7 +104,9 @@ if flag == "raw":
     if should_down_sample:
         v, _ = down_sample.down_sample_frame(v, frames_data)
         h, frames_data = down_sample.down_sample_frame(h, frames_data)
-
+    else:
+        v = v[:, frames_data, :]
+        h = h[:, frames_data, :]
     seg_v = segment.divide_data_to_segments(mask, v)
     seg_h = segment.divide_data_to_segments(mask, h)
     data_io.save_to([mask, seg_v, seg_h, frames_data], folder, "seg")
@@ -116,6 +119,10 @@ if flag == "raw" or flag == "seg":
     # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
     data_io.save_to(data_sets, folder, "set")
 #################################################################################
+# TODO remove this:
+if no_net:
+    exit()
+
 # MODEL
 if flag == "raw" or flag == "seg" or flag == "set":
     print('running the model')
