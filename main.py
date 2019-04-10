@@ -53,114 +53,102 @@ import model
 import visualize_res
 import segment
 import create_data_set
-from scipy import io as sio
 import dense_net
 import data_set
 import down_sample
+from read_settings import Settings
 
 parser = argparse.ArgumentParser()
-parser.add_argument("data_folder", help="path to the data file. mat or npz.")
-parser.add_argument("-frames", action="store", dest="frames_seg", nargs=2, type=int, default=[27, 53],  # corresponds to 28-54
-                    help="a list of integers of the frames to process.")
-parser.add_argument("-fr_data", action="store", dest="frames_data", nargs=2, type=int, default=[27, 53],
-                    help="a list of integers of the frames to process.")
-parser.add_argument("-f", action="store", dest="flag", default="raw", help="Where to start. Options: raw, seg, set, res"
-                                                                           "raw: in the beginning."
-                                                                           "seg: after segmentation."
-                                                                           "set: after creating the data sets."
-                                                                           "res: in processing the result")
-parser.add_argument("-ds", type=bool, nargs='?', const=True, default=False, help="Down sample frames over time")
-
+parser.add_argument("settings_path", help="path to the settings file")
 args = parser.parse_args()
-folder = args.data_folder
-frames_seg = list(range(args.frames_seg[0], args.frames_seg[1]))
-# frames_data = list(range(args.frames_data[0], args.frames_data[1]))
-frames_data = frames_seg
-flag = args.flag
-should_down_sample = args.ds
-cv = True
-no_net = True
+settings_path = args.setting_path
 
+
+def main(path):
+    settings = Settings(path)
+    if 'seg' in settings.stages:
+        v, h = data_io.read_from_file(settings.input_files['seg'], 'mat')
+        mask, seg_v, seg_h = create_seg(v, h, settings.frames, settings.flags)
+        data_io.save_to([mask, seg_v, seg_h], settings.output_files['seg'], 'seg')
+    if 'set' in settings.stages:
+        mask, seg_v, seg_h = data_io.read_from_file(settings.input_files['set'], 'set')
+        data_sets = create_set(seg_v, seg_h, settings.sizes, settings.flags)
+        data_io.save_to(data_sets, settings.output_files['set'], 'set')
+    if 'net' in settings.stages:
+        data_sets = data_io.read_from_file(settings.input_files['net'], 'net')
+        net, train_losses, validation_losses, test_losses = run_net(data_sets, settings.flags)
+        data_io.save_to(net, settings.output_files['net'], 'net')
+        data_io.save_to([train_losses, validation_losses, test_losses], settings.output_files['los'], 'los')
 #################################################################################
 # READ THE DATA
-print('reading data')
-data = data_io.read_from_file(folder, flag)
-if flag == "raw":
-    v, h = data
-elif flag == "seg":
-    mask, seg_v, seg_h, frames_data = data
-elif flag == "set":
-    data_sets = data
-elif flag == "los":
-    train_losses, validation_losses, test_losses = data
-elif flag == "net":
-    net = data
+# print('reading data')
+# data = data_io.read_from_file(folder, flag)
+# if flag == "raw":
+#     v, h = data
+# elif flag == "seg":
+#     mask, seg_v, seg_h, frames_data = data
+# elif flag == "set":
+#     data_sets = data
+# elif flag == "los":
+#     train_losses, validation_losses, test_losses = data
+# elif flag == "net":
+#     net = data
 
 #################################################################################
 # SEGMENTS
-if flag == "raw":
+
+
+def create_seg(v, h, frames, flags):
     print('creating segments')
-    mask = segment.vert_horiz_seg(v, h, frames_seg)
-    if should_down_sample:
-        v, _ = down_sample.down_sample_frame(v, frames_data)
-        h, frames_data = down_sample.down_sample_frame(h, frames_data)
-    else:
-        v = v[:, frames_data, :]
-        h = h[:, frames_data, :]
+    v = v[:, frames, :]
+    h = h[:, frames, :]
+    mask = segment.vert_horiz_seg(v, h)
+    # if should_down_sample:
+    #     v, _ = down_sample.down_sample_frame(v, frames_data)
+    #     h, frames_data = down_sample.down_sample_frame(h, frames_data)
     seg_v = segment.divide_data_to_segments(mask, v)
     seg_h = segment.divide_data_to_segments(mask, h)
-    data_io.save_to([mask, seg_v, seg_h, frames_data], folder, "seg")
+    return mask, seg_v, seg_h
 #################################################################################
 # DATA SET
-if flag == "raw" or flag == "seg":
-    print('creating data sets')
-    data_sets = create_data_set.get_data(
-        seg_v, seg_h, n_train=50, n_valid=5, n_test=1, cv=cv, flat_x=True, to_tensor=False, random=False)
-    # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
-    data_io.save_to(data_sets, folder, "set")
-#################################################################################
-# TODO remove this:
-if no_net:
-    exit()
 
+
+def create_set(seg_v, seg_h, sizes, flags):
+    print('creating data sets')
+    cv = 'cv' in flags
+    data_sets = create_data_set.get_data(
+        seg_v, seg_h, n_train=sizes['train'], n_valid=sizes['valid'], n_test=sizes['test'], cv=cv, flat_x=True, to_tensor=False, random=False)
+    return data_sets  # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
+#################################################################################
 # MODEL
-if flag == "raw" or flag == "seg" or flag == "set":
+
+
+def run_net(data_sets, flags):
     print('running the model')
+    cv = 'cv' in flags
     train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
     train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
     net = dense_net.get_model(D_in)
     # net = dense_net.init_weights(net)
     net, train_losses, validation_losses, test_losses = model.run_model(net, [train, valid, test], cv=cv)
-    data_io.save_to([train_losses, validation_losses, test_losses], folder, "los")
-    data_io.save_to(net, folder, "net")
+    return net, train_losses, validation_losses, test_losses
+    # data_io.save_to([train_losses, validation_losses, test_losses], folder, "los")
+    # data_io.save_to(net, folder, "net")
 #################################################################################
 
-# TODO organize this
-net = data_io.read_from_file(folder, "net")
-mask, _, _, frames_data = data_io.read_from_file(folder, "seg")
-data_sets = data_io.read_from_file(folder, "set")
 
+def res(net, data_sets, frames, mask, flags):
+    cv = 'cv' in flags
+    # visualize_res.plot_losses(train_losses, validation_losses, test_losses, len(data_sets))
 
-# train_losses, validation_losses, test_losses = data_io.read_from_file(folder, "los")
-# visualize_res.plot_losses(train_losses, validation_losses, test_losses, len(data_sets))
+    train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+    train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
-train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
-train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
+    loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames), part_type='frames')
+    visualize_res.plot_frame_loss(loss_map, [x+1 for x in frames])  # counting starts from 0, so the relevant frames are +1
+    loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames), part_type='segments')
+    image = segment.recreate_image(mask, loss_map)
+    visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
 
-
-loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames_data), part_type='frames')
-visualize_res.plot_frame_loss(loss_map, [x+1 for x in frames_data])  # counting starts from 0, so the relevant frames are +1
-loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames_data), part_type='segments')
-image = segment.recreate_image(mask, loss_map)
-visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
-
-
-
-
-# sio.savemat('temp_outputs/vis_test', {'image': image})
-
-# image = visualize_res.plot_weights(model_state, mask)
-# sio.savemat("temp_outputs/test_vis", {'vis':image})
-# visualize_res.plot_losses(train_losses, validation_losses, test_losses)
 
 

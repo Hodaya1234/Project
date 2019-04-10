@@ -34,20 +34,20 @@ def read_from_file(folder_name, flag):
         The results of the model.
     :return: numpy ndarrays with the extracted data from the file.
     """
-    if flag == 'raw':
-        file = sio.loadmat(folder_name + "/clean.mat")
+    if flag == 'mat':
+        file = sio.loadmat(folder_name)
         return file['clean_vert'], file['clean_horiz']
-    if flag == 'seg':
-        file = np.load(folder_name + "/seg.npz")
-        return file['mask'], file['seg_v'], file['seg_h'], file['n_frames']
     if flag == 'set':
-        file = np.load(folder_name + "/set.npz")
+        file = np.load(folder_name)
+        return file['mask'], file['seg_v'], file['seg_h']
+    if flag == 'net':
+        file = np.load(folder_name)
         return file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
     if flag == 'los':
-        file = np.load(folder_name + "/los.npz")
+        file = np.load(folder_name)
         return file['train_losses'], file['validation_losses'], file['test_losses']
     if flag == 'net':
-        return torch.load(folder_name + "/net.pt")
+        return torch.load(folder_name)
 
 
 def save_to(data, folder_name, flag):
@@ -75,16 +75,16 @@ def save_to(data, folder_name, flag):
     #     np.savez(folder_name, clean_horiz=data['clean_horiz'], clean_vert=data['clean_vert'],
     #              clean_blank=data['clean_blank'])
     if flag == 'seg':
-        mask, seg_v, seg_h, n_frames = data
-        np.savez(folder_name + "/seg", mask=mask, seg_v=seg_v, seg_h=seg_h, n_frames=n_frames)
+        mask, seg_v, seg_h = data
+        np.savez(folder_name, mask=mask, seg_v=seg_v, seg_h=seg_h)
     if flag == 'set':
         train_x, train_y, valid_x, valid_y, test_x, test_y = data
         np.savez(
-            folder_name + "/set", train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
+            folder_name, train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
     if flag == 'los':
         train_losses, validation_losses, test_losses = data
-        np.savez(folder_name + "/los", train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses)
+        np.savez(folder_name, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses)
         return
     if flag == 'net':
         net = data
-        torch.save(net, folder_name + "/net.pt")
+        torch.save(net, folder_name)

@@ -4,12 +4,11 @@ from skimage.segmentation import felzenszwalb, join_segmentations
 import warnings
 
 
-def vert_horiz_seg(vert, horiz, frames_for_seg, square=False):
+def vert_horiz_seg(vert, horiz, square=False):
     """
     The 'main' function of this module - take the two conditions and divide the pixels to smaller groups.
     :param vert: The vertical condition data of size [10,000 X n_frames] OR [100 X 100 X n_frames]
     :param horiz: The horizontal condition data data of size [10,000 X n_frames] OR [100 X 100 X n_frames]
-    :param frames_for_seg: The relevant frames of the data - usually the frames of high activation and some baseline.
     :return: A [100 X 100] integer mask where each number marks a group of neighboring related pixels.
     """
     # if there are several trials, need to average over trials first and remove this dimension
@@ -21,8 +20,8 @@ def vert_horiz_seg(vert, horiz, frames_for_seg, square=False):
     vert_data = change_data_dim(vert_data, to_array=False)  # make sure both are represented as matrices and not arrays
     horiz_data = change_data_dim(horiz_data, to_array=False)
 
-    vert_data = np.mean(vert_data[:, :, frames_for_seg, :], 3)
-    horiz_data = np.mean(horiz_data[:, :, frames_for_seg, :], 3)
+    vert_data = np.mean(vert_data[:, :, :, :], 3)
+    horiz_data = np.mean(horiz_data[:, :, :, :], 3)
     if square:
         vert_data = np.square(vert_data)
         horiz_data = np.square(horiz_data)
