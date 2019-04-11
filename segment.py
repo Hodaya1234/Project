@@ -114,7 +114,7 @@ def recreate_image(segments_mask, segments_values):
     return images
 
 
-def segment_felz(data, background_mask, scale=37, sigma=0, min_size=9):
+def segment_felz(data, background_mask, scale=37, sigma=0, min_size=9, max_n_seg=120):
     """
     Use the scikit-image implementation of felzenszwalb algorithm
     :param data: The original data, of dimensions [100 X 100 X n_frames*2] (The teo conditions are concatenated on the
@@ -127,6 +127,16 @@ def segment_felz(data, background_mask, scale=37, sigma=0, min_size=9):
     """
     segments = felzenszwalb(data, scale=scale, sigma=sigma, min_size=min_size)
     segments[background_mask == 0] = 0
+    i = 0
+    while(len(np.unique(segments)) > max_n_seg):
+        print(len(np.unique(segments)))
+        if i % 2:
+            scale += 1
+        else:
+            min_size += 1
+        segments = felzenszwalb(data, scale=scale, sigma=sigma, min_size=min_size)
+        segments[background_mask == 0] = 0
+        i = 1-i
     return segments
 
 

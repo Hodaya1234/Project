@@ -38,14 +38,17 @@ def read_from_file(folder_name, flag):
         file = sio.loadmat(folder_name)
         return file['clean_vert'], file['clean_horiz']
     if flag == 'seg':
-        file = np.load(folder_name)
-        return file['mask'], file['seg_v'], file['seg_h']
+        with np.load(folder_name) as file:
+            data = file['mask'], file['seg_v'], file['seg_h']
+        return data
     if flag == 'set':
-        file = np.load(folder_name)
-        return file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
+        with np.load(folder_name) as file:
+            data = file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
+        return data
     if flag == 'los':
-        file = np.load(folder_name)
-        return file['train_losses'], file['validation_losses'], file['test_losses'], file['n_data_sets']
+        with np.load(folder_name) as file:
+            data = file['train_losses'], file['validation_losses'], file['test_losses'], file['n_data_sets']
+        return data
     if flag == 'net':
         return torch.load(folder_name)
 
