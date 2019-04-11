@@ -117,7 +117,7 @@ def get_all_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat
             thread_inputs = seg_v, train_indices_v[i], test_indices_v[i] ,seg_h, train_indices_h[i], test_indices_h[i], n_train, n_valid, n_test
             t = Thread(target=lambda q, arg1: q.put(threaded_set_create(arg1)), args=(que, thread_inputs))
             threads_list.append(t)
-            
+
 
             train_set_v, valid_set_v, test_set_v = create_one_data_sets(seg_v, train_indices_v[i], test_indices_v[i],
                                                                         n_train, n_valid, n_test)
