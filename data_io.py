@@ -37,15 +37,15 @@ def read_from_file(folder_name, flag):
     if flag == 'mat':
         file = sio.loadmat(folder_name)
         return file['clean_vert'], file['clean_horiz']
-    if flag == 'set':
+    if flag == 'seg':
         file = np.load(folder_name)
         return file['mask'], file['seg_v'], file['seg_h']
-    if flag == 'net':
+    if flag == 'set':
         file = np.load(folder_name)
         return file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
     if flag == 'los':
         file = np.load(folder_name)
-        return file['train_losses'], file['validation_losses'], file['test_losses']
+        return file['train_losses'], file['validation_losses'], file['test_losses'], file['n_data_sets']
     if flag == 'net':
         return torch.load(folder_name)
 
@@ -77,14 +77,14 @@ def save_to(data, folder_name, flag):
     if flag == 'seg':
         mask, seg_v, seg_h = data
         np.savez(folder_name, mask=mask, seg_v=seg_v, seg_h=seg_h)
-    if flag == 'set':
+    elif flag == 'set':
         train_x, train_y, valid_x, valid_y, test_x, test_y = data
         np.savez(
             folder_name, train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
-    if flag == 'los':
-        train_losses, validation_losses, test_losses = data
-        np.savez(folder_name, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses)
+    elif flag == 'los':
+        train_losses, validation_losses, test_losses, n_data_sets = data
+        np.savez(folder_name, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses, n_data_sets=n_data_sets)
         return
-    if flag == 'net':
+    elif flag == 'net':
         net = data
         torch.save(net, folder_name)

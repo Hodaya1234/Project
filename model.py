@@ -101,10 +101,10 @@ def run_model(model, data_sets, cv=True):
     train_dataset, valid_dataset, test_dataset = data_set.data_to_cuda(data_sets, device, cv)  # DataSet objects
 
     model = model.double().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [7])
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [1, 7])
     loss_fn = nn.BCELoss()
-    n_epochs = 10
+    n_epochs = 12
 
     model, train_losses, validation_losses, test_losses = train_model(model, train_dataset,
                                                                       valid_dataset, train_dataset, optimizer,

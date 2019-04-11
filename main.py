@@ -58,42 +58,6 @@ import data_set
 import down_sample
 from read_settings import Settings
 
-parser = argparse.ArgumentParser()
-parser.add_argument("settings_path", help="path to the settings file")
-args = parser.parse_args()
-settings_path = args.setting_path
-
-
-def main(path):
-    settings = Settings(path)
-    if 'seg' in settings.stages:
-        v, h = data_io.read_from_file(settings.input_files['seg'], 'mat')
-        mask, seg_v, seg_h = create_seg(v, h, settings.frames, settings.flags)
-        data_io.save_to([mask, seg_v, seg_h], settings.output_files['seg'], 'seg')
-    if 'set' in settings.stages:
-        mask, seg_v, seg_h = data_io.read_from_file(settings.input_files['set'], 'set')
-        data_sets = create_set(seg_v, seg_h, settings.sizes, settings.flags)
-        data_io.save_to(data_sets, settings.output_files['set'], 'set')
-    if 'net' in settings.stages:
-        data_sets = data_io.read_from_file(settings.input_files['net'], 'net')
-        net, train_losses, validation_losses, test_losses = run_net(data_sets, settings.flags)
-        data_io.save_to(net, settings.output_files['net'], 'net')
-        data_io.save_to([train_losses, validation_losses, test_losses], settings.output_files['los'], 'los')
-#################################################################################
-# READ THE DATA
-# print('reading data')
-# data = data_io.read_from_file(folder, flag)
-# if flag == "raw":
-#     v, h = data
-# elif flag == "seg":
-#     mask, seg_v, seg_h, frames_data = data
-# elif flag == "set":
-#     data_sets = data
-# elif flag == "los":
-#     train_losses, validation_losses, test_losses = data
-# elif flag == "net":
-#     net = data
-
 #################################################################################
 # SEGMENTS
 
@@ -116,7 +80,7 @@ def create_seg(v, h, frames, flags):
 def create_set(seg_v, seg_h, sizes, flags):
     print('creating data sets')
     cv = 'cv' in flags
-    data_sets = create_data_set.get_data(
+    data_sets = create_data_set.get_all_data(
         seg_v, seg_h, n_train=sizes['train'], n_valid=sizes['valid'], n_test=sizes['test'], cv=cv, flat_x=True, to_tensor=False, random=False)
     return data_sets  # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
 #################################################################################
@@ -132,14 +96,16 @@ def run_net(data_sets, flags):
     # net = dense_net.init_weights(net)
     net, train_losses, validation_losses, test_losses = model.run_model(net, [train, valid, test], cv=cv)
     return net, train_losses, validation_losses, test_losses
-    # data_io.save_to([train_losses, validation_losses, test_losses], folder, "los")
-    # data_io.save_to(net, folder, "net")
 #################################################################################
+# PLOT LOSSES
 
 
-def res(net, data_sets, frames, mask, flags):
+def plot_loss(train_losses, validation_losses, test_losses, n_data_sets):
+    visualize_res.plot_losses(train_losses, validation_losses, test_losses, n_data_sets)
+
+
+def plot_vis(net, data_sets, frames, mask, flags):
     cv = 'cv' in flags
-    # visualize_res.plot_losses(train_losses, validation_losses, test_losses, len(data_sets))
 
     train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
     train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
@@ -149,6 +115,38 @@ def res(net, data_sets, frames, mask, flags):
     loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames), part_type='segments')
     image = segment.recreate_image(mask, loss_map)
     visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
+    # TODO: receive the images as input and save
+#################################################################################
+# MAIN
 
 
+def main(path):
+    settings = Settings(path)
+    if 'seg' in settings.stages:
+        v, h = data_io.read_from_file(settings.input_files['seg'], 'mat')
+        mask, seg_v, seg_h = create_seg(v, h, settings.frames, settings.flags)
+        data_io.save_to([mask, seg_v, seg_h], settings.output_files['seg'], 'seg')
+    if 'set' in settings.stages:
+        mask, seg_v, seg_h = data_io.read_from_file(settings.input_files['set'], 'seg')
+        data_sets = create_set(seg_v, seg_h, settings.sizes, settings.flags)
+        data_io.save_to(data_sets, settings.output_files['set'], 'set')
+    if 'net' in settings.stages:
+        data_sets = data_io.read_from_file(settings.input_files['net'], 'set')
+        net, train_losses, validation_losses, test_losses = run_net(data_sets, settings.flags)
+        data_io.save_to(net, settings.output_files['net'], 'net')
+        # TODO: make sure this works for not cv:
+        data_io.save_to([train_losses, validation_losses, test_losses, len(data_sets[0])], settings.output_files['los'], 'los')
+    if 'los' in settings.stages:
+        train_losses, validation_losses, test_losses, n_data_sets = data_io.read_from_file(settings.input_files['los'], 'los')
+        plot_loss(train_losses, validation_losses, test_losses, n_data_sets)
+    if 'vis' in settings.stages:
+        net = data_io.read_from_file(settings.input_files['vis_net'], 'net')
+        data_sets = data_io.read_from_file(settings.input_files['vis_set'], 'set')
+        mask, _, _ = data_io.read_from_file(settings.input_files['vis_seg'], 'seg')
+        plot_vis(net, data_sets, settings.frames, mask, settings.flags)
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument("settings_path", help="path to the settings file")
+args = parser.parse_args()
+main(args.settings_path)

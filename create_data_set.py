@@ -2,6 +2,8 @@ import numpy as np
 import augment
 import torch
 from data_set import DataSet
+import queue
+from threading import Thread
 
 
 def turn_to_torch_dataset(data_sets, cv=True):
@@ -72,7 +74,19 @@ def create_one_data_sets(data, train_indices, test_indices, n_train, n_valid, n_
     return train_set, valid_set, test_set
 
 
-def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True, random=False):
+def threaded_set_create(inputs):
+    seg_v, train_indices_v, test_indices_v, seg_h, train_indices_h, test_indices_h, n_train, n_valid, n_test = inputs
+    train_set_v, valid_set_v, test_set_v = create_one_data_sets(seg_v, train_indices_v, test_indices_v,
+                                                                n_train, n_valid, n_test)
+    train_set_h, valid_set_h, test_set_h = create_one_data_sets(seg_h, train_indices_h, test_indices_h,
+                                                                n_train, n_valid, n_test)
+    train_x = np.concatenate((train_set_v, train_set_h), 0)
+    valid_x = np.concatenate((valid_set_v, valid_set_h), 0)
+    test_x = np.concatenate((test_set_v, test_set_h), 0)
+    return [train_x, valid_x, test_x]
+
+
+def get_all_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True, random=False):
     """
     Create the data set from the relevant parameters
     :param seg_v: The segmented original vertical condition
@@ -97,7 +111,14 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
         train_indices_v, test_indices_v = get_train_test_indices(num_v, n_original, n_test, number_of_sets=number_of_sets, random=random)
         train_indices_h, test_indices_h = get_train_test_indices(num_h, n_original, n_test, number_of_sets=number_of_sets, random=random)
 
+        que = queue.Queue()
+        threads_list = list()
         for i in range(number_of_sets):
+            thread_inputs = seg_v, train_indices_v[i], test_indices_v[i] ,seg_h, train_indices_h[i], test_indices_h[i], n_train, n_valid, n_test
+            t = Thread(target=lambda q, arg1: q.put(threaded_set_create(arg1)), args=(que, thread_inputs))
+            threads_list.append(t)
+            
+
             train_set_v, valid_set_v, test_set_v = create_one_data_sets(seg_v, train_indices_v[i], test_indices_v[i],
                                                                         n_train, n_valid, n_test)
             train_set_h, valid_set_h, test_set_h = create_one_data_sets(seg_h, train_indices_h[i], test_indices_h[i],
@@ -111,7 +132,6 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
                 train_x = np.reshape(train_x, (train_x.shape[0], -1))
                 valid_x = np.reshape(valid_x, (valid_x.shape[0], -1))
                 test_x = np.reshape(test_x, (test_x.shape[0], -1))
-                print(train_x.shape)
             if to_tensor:
                 train_x, valid_x, test_x = np_to_tensor([train_x, valid_x, test_x])
             train_sets_x.append(train_x)

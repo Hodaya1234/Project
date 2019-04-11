@@ -19,6 +19,11 @@ class Settings:
                 self.sizes[words[1].strip()] = int(words[2].strip())
                 self.sizes[words[3].strip()] = int(words[4].strip())
                 self.sizes[words[5].strip()] = int(words[6].strip())
+            elif line_key == 'vis':
+                self.stages.append('vis')
+                self.input_files['vis_net'] = words[1].strip()
+                self.input_files['vis_set'] = words[2].strip()
+                self.input_files['vis_seg'] = words[3].strip()
             else:
                 self.stages.append(line_key)
                 self.input_files[line_key] = words[1].strip()
