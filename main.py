@@ -80,7 +80,7 @@ def create_seg(v, h, frames, flags):
 def create_set(seg_v, seg_h, sizes, flags):
     print('creating data sets')
     cv = 'cv' in flags
-    data_sets = create_data_set.get_all_data(
+    data_sets = create_data_set.get_data(
         seg_v, seg_h, n_train=sizes['train'], n_valid=sizes['valid'], n_test=sizes['test'], cv=cv, flat_x=True, to_tensor=False, random=False)
     return data_sets  # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
 #################################################################################
@@ -105,6 +105,8 @@ def plot_loss(train_losses, validation_losses, test_losses, n_data_sets):
 
 
 def plot_vis(net, data_sets, frames, mask, flags):
+    # visualize_res.plot_mask(mask)
+
     cv = 'cv' in flags
 
     train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)

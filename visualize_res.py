@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import segment
 import scipy.io as sio
+from skimage.segmentation import find_boundaries
 
 def plot_losses(train_losses, validation_losses, test_losses, n_data_sets):
     places = [i for i in range(len(train_losses)) if i % n_data_sets == 0]
@@ -60,3 +61,10 @@ def plot_frame_loss(losses, frames):
     plt.title('Loss Per Missing Frame')
     plt.show()
 
+
+def plot_mask(mask):
+    bounder = find_boundaries(mask, mode='thin').astype(np.uint8)
+    plt.figure()
+    plt.imshow(mask, cmap='gray')
+    plt.imshow(bounder, alpha=0.5)
+    plt.show()

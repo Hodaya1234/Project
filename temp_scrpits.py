@@ -9,7 +9,7 @@ import scipy.io as sio
 import segment
 
 
-segs = np.load('temp_outputs/2511-ret/seg.npz')
+segs = np.load('temp_outputs/2511-a/seg.npz')
 mask = segs['mask']
 sio.savemat('test_vis', {'mask':mask})
 

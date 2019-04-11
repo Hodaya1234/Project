@@ -72,19 +72,7 @@ def create_one_data_sets(data, train_indices, test_indices, n_train, n_valid, n_
     return train_set, valid_set, test_set
 
 
-def threaded_set_create(seg_v, train_indices_v, test_indices_v,seg_h, train_indices_h, test_indices_h, n_train, n_valid, n_test):
-
-    train_set_v, valid_set_v, test_set_v = create_one_data_sets(seg_v, train_indices_v, test_indices_v,
-                                                                n_train, n_valid, n_test)
-    train_set_h, valid_set_h, test_set_h = create_one_data_sets(seg_h, train_indices_h, test_indices_h,
-                                                                n_train, n_valid, n_test)
-    train_x = np.concatenate((train_set_v, train_set_h), 0)
-    valid_x = np.concatenate((valid_set_v, valid_set_h), 0)
-    test_x = np.concatenate((test_set_v, test_set_h), 0)
-    return [train_x, valid_x, test_x]
-
-
-def get_all_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True, random=False):
+def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True, random=False):
     """
     Create the data set from the relevant parameters
     :param seg_v: The segmented original vertical condition

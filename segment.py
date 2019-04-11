@@ -37,6 +37,8 @@ def vert_horiz_seg(vert, horiz, square=False):
         # if the segment numbers are sparse, "squeeze" them.
         # might happen because the background mask "took over" several segment numbers
         all_segments[all_segments == num] = idx
+    # TODO: remove this
+    print(len(np.unique(all_segments)))
     return all_segments
 
 
