@@ -34,12 +34,14 @@ def read_from_file(folder_name, flag):
         The results of the model.
     :return: numpy ndarrays with the extracted data from the file.
     """
-    if flag == 'mat':
+    if flag == 'raw':
         file = sio.loadmat(folder_name)
         return file['clean_vert'], file['clean_horiz']
+    if flag == 'mask':
+        return np.load(folder_name)
     if flag == 'seg':
         with np.load(folder_name) as file:
-            data = file['mask'], file['seg_v'], file['seg_h']
+            data = file['seg_v'], file['seg_h']
         return data
     if flag == 'set':
         with np.load(folder_name) as file:
@@ -77,9 +79,12 @@ def save_to(data, folder_name, flag):
     # if flag == 'raw':
     #     np.savez(folder_name, clean_horiz=data['clean_horiz'], clean_vert=data['clean_vert'],
     #              clean_blank=data['clean_blank'])
+    if flag == 'mask':
+        np.save(folder_name, data)
+
     if flag == 'seg':
-        mask, seg_v, seg_h = data
-        np.savez(folder_name, mask=mask, seg_v=seg_v, seg_h=seg_h)
+        seg_v, seg_h = data
+        np.savez(folder_name, seg_v=seg_v, seg_h=seg_h)
     elif flag == 'set':
         train_x, train_y, valid_x, valid_y, test_x, test_y = data
         np.savez(

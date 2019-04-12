@@ -4,7 +4,6 @@ PROJECT MAIN
 ***Input arguments***:
 filename: a relative path to the data file
 flags: the type of data to start with. options: raw, seg, set and res.
-frames: the relevant frames to take from a raw data input.
 
 ***Program order***:
 1. READ THE DATA FILE
@@ -44,6 +43,7 @@ frames: the relevant frames to take from a raw data input.
     out an original example and create the data with it, and include this example in the test set.
 5. GET RESULTS
     Plot the train and test error as a function of epochs.
+    visualize the network by removing parts and seeing the effect on the loss
 
 """
 
@@ -58,94 +58,65 @@ import data_set
 import down_sample
 from read_settings import Settings
 
-#################################################################################
-# SEGMENTS
-
-
-def create_seg(v, h, frames, flags):
-    print('creating segments')
-    v = v[:, frames, :]
-    h = h[:, frames, :]
-    mask = segment.vert_horiz_seg(v, h)
-    # if should_down_sample:
-    #     v, _ = down_sample.down_sample_frame(v, frames_data)
-    #     h, frames_data = down_sample.down_sample_frame(h, frames_data)
-    seg_v = segment.divide_data_to_segments(mask, v)
-    seg_h = segment.divide_data_to_segments(mask, h)
-    return mask, seg_v, seg_h
-#################################################################################
-# DATA SET
-
-
-def create_set(seg_v, seg_h, sizes, flags):
-    print('creating data sets')
-    cv = 'cv' in flags
-    data_sets = create_data_set.get_data(
-        seg_v, seg_h, n_train=sizes['train'], n_valid=sizes['valid'], n_test=sizes['test'], cv=cv, flat_x=True, to_tensor=False, random=False)
-    return data_sets  # data_sets contains: train_x, train_y, valid_x, valid_y, test_x, test_y
-#################################################################################
-# MODEL
-
-
-def run_net(data_sets, flags):
-    print('running the model')
-    cv = 'cv' in flags
-    train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
-    train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
-    net = dense_net.get_model(D_in)
-    # net = dense_net.init_weights(net)
-    net, train_losses, validation_losses, test_losses = model.run_model(net, [train, valid, test], cv=cv)
-    return net, train_losses, validation_losses, test_losses
-#################################################################################
-# PLOT LOSSES
-
-
-def plot_loss(train_losses, validation_losses, test_losses, n_data_sets):
-    visualize_res.plot_losses(train_losses, validation_losses, test_losses, n_data_sets)
-
-
-def plot_vis(net, data_sets, frames, mask, flags):
-    # visualize_res.plot_mask(mask)
-
-    cv = 'cv' in flags
-
-    train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
-    train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
-
-    loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames), part_type='frames')
-    visualize_res.plot_frame_loss(loss_map, [x+1 for x in frames])  # counting starts from 0, so the relevant frames are +1
-    loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(frames), part_type='segments')
-    image = segment.recreate_image(mask, loss_map)
-    visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
-    # TODO: receive the images as input and save
-#################################################################################
-# MAIN
-
 
 def main(path):
     settings = Settings(path)
+    # mask seg set net los vis
+    if 'mask' in settings.stages:
+        # need v,h raw and frames
+        v, h = data_io.read_from_file(settings.files['raw'], 'raw')
+        mask = segment.vert_horiz_seg(v[:, settings.frames, :], h[:, settings.frames, :])
+        data_io.save_to(mask, settings.files['mask'], 'mask')
+
     if 'seg' in settings.stages:
-        v, h = data_io.read_from_file(settings.input_files['seg'], 'mat')
-        mask, seg_v, seg_h = create_seg(v, h, settings.frames, settings.flags)
-        data_io.save_to([mask, seg_v, seg_h], settings.output_files['seg'], 'seg')
+        mask = data_io.read_from_file(settings.files['mask'], 'mask')
+        v, h = data_io.read_from_file(settings.files['raw'], 'raw')
+        seg_v = segment.divide_data_to_segments(mask, v[:, settings.frames, :])
+        seg_h = segment.divide_data_to_segments(mask, h[:, settings.frames, :])
+        data_io.save_to([seg_v, seg_h], settings.files['seg'], 'seg')
+
     if 'set' in settings.stages:
-        mask, seg_v, seg_h = data_io.read_from_file(settings.input_files['set'], 'seg')
-        data_sets = create_set(seg_v, seg_h, settings.sizes, settings.flags)
-        data_io.save_to(data_sets, settings.output_files['set'], 'set')
+        [seg_v, seg_h] = data_io.read_from_file(settings.files['seg'], 'seg')
+        cv = 'cv' in settings.flags
+        sizes = settings.sizes
+        data_sets = create_data_set.get_data(
+            seg_v, seg_h, n_train=sizes['train'], n_valid=sizes['valid'], n_test=sizes['test'], cv=cv, flat_x=True,
+            to_tensor=False, random=False)
+        data_io.save_to(data_sets, settings.files['set'], 'set')
+
     if 'net' in settings.stages:
-        data_sets = data_io.read_from_file(settings.input_files['net'], 'set')
-        net, train_losses, validation_losses, test_losses = run_net(data_sets, settings.flags)
-        data_io.save_to(net, settings.output_files['net'], 'net')
-        # TODO: make sure this works for not cv:
-        data_io.save_to([train_losses, validation_losses, test_losses, len(data_sets[0])], settings.output_files['los'], 'los')
+        cv = 'cv' in settings.flags
+        data_sets = data_io.read_from_file(settings.files['set'], 'set')
+
+        train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+        train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
+        net = dense_net.get_model(D_in)
+        # net = dense_net.init_weights(net)
+        net, train_losses, validation_losses, test_losses = model.run_model(net, [train, valid, test], cv=cv)
+
+        data_io.save_to(net, settings.files['net'], 'net')
+        n_data_sets = len(data_sets[0]) if cv else 1
+        data_io.save_to([train_losses, validation_losses, test_losses, n_data_sets], settings.files['los'], 'los')
+
     if 'los' in settings.stages:
-        train_losses, validation_losses, test_losses, n_data_sets = data_io.read_from_file(settings.input_files['los'], 'los')
-        plot_loss(train_losses, validation_losses, test_losses, n_data_sets)
+        train_losses, validation_losses, test_losses, n_data_sets = data_io.read_from_file(settings.files['los'], 'los')
+        visualize_res.plot_losses(train_losses, validation_losses, test_losses, n_data_sets)
+
     if 'vis' in settings.stages:
-        net = data_io.read_from_file(settings.input_files['vis_net'], 'net')
-        data_sets = data_io.read_from_file(settings.input_files['vis_set'], 'set')
-        mask, _, _ = data_io.read_from_file(settings.input_files['vis_seg'], 'seg')
-        plot_vis(net, data_sets, settings.frames, mask, settings.flags)
+        net = data_io.read_from_file(settings.files['net'], 'net')
+        data_sets = data_io.read_from_file(settings.files['set'], 'set')
+        mask = data_io.read_from_file(settings.files['mask'], 'mask')
+        cv = 'cv' in settings.flags
+
+        train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+        train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
+
+        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames')
+        visualize_res.plot_frame_loss(loss_map,
+                                      [x + 1 for x in settings.frames])  # counting starts from 0, so the relevant frames are +1
+        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments')
+        image = segment.recreate_image(mask, loss_map)
+        visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
 
 
 parser = argparse.ArgumentParser()

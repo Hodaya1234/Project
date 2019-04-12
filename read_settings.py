@@ -4,11 +4,11 @@ class Settings:
         file = open(setting_file, 'r')
         lines = file.readlines()
         self.stages = []
-        self.input_files = dict()
-        self.output_files = dict()
+        self.files = dict()
         self.flags = []
         self.sizes = dict()
-        for line in lines:
+        self.stages = [w.strip() for w in lines[0].split()]
+        for line in lines[1:]:
             words = line.split()
             line_key = words[0].strip()
             if line_key == 'frames':
@@ -19,23 +19,19 @@ class Settings:
                 self.sizes[words[1].strip()] = int(words[2].strip())
                 self.sizes[words[3].strip()] = int(words[4].strip())
                 self.sizes[words[5].strip()] = int(words[6].strip())
-            elif line_key == 'vis':
-                self.stages.append('vis')
-                self.input_files['vis_net'] = words[1].strip()
-                self.input_files['vis_set'] = words[2].strip()
-                self.input_files['vis_seg'] = words[3].strip()
             else:
-                self.stages.append(line_key)
-                self.input_files[line_key] = words[1].strip()
-                self.output_files[line_key] = words[2].strip()
+                self.files[line_key] = words[1].strip()
 
 
 # EXAMPLE
 """
-seg temp_outputs\clean.mat temp_outputs\seg.npz
-set temp_outputs\seg.npz temp_outputs\set.npz
-net temp_outputs\set.npz temp_outputs\net.pt
-res temp_outputs\net.pt temp_outputs\res.npz
+mask seg set net los vis
+raw temp_outputs/clean.mat
+mask temp_outputs/mask.npy
+seg temp_outputs/seg.npz
+set temp_outputs/set.npz
+net temp_outputs/net.pt
+los temp_outputs/los.npz
 frames 27 53
 sizes train 50 valid 10 test 1
 flag cv
