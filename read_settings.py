@@ -30,8 +30,8 @@ raw temp_outputs/clean.mat
 mask temp_outputs/mask.npy
 seg temp_outputs/seg.npz
 set temp_outputs/set.npz
-net temp_outputs/net.pt
-los temp_outputs/los.npz
+net temp_outputs/net1.pt
+los temp_outputs/los1.npz
 frames 27 53
 sizes train 50 valid 10 test 1
 flag cv

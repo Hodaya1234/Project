@@ -21,8 +21,8 @@ class DataSet(data_utils.Dataset):
         return DataSet(self.all_x.to(device), self.all_y.to(device))
 
     def normalize(self):
-        mean_x = self.all_x.mean().item()
-        std_x = self.all_x.std().item()
+        mean_x = torch.mean(self.all_x, dim=0).repeat(self.n_data, 1)
+        std_x = torch.std(self.all_x, dim=0).repeat(self.n_data, 1)
         return DataSet(torch.div(torch.sub(self.all_x, mean_x), std_x), self.all_y)
 
 

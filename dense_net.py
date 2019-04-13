@@ -21,8 +21,8 @@ class DenseNet(nn.Module):
 
 
 def get_model(D_in):
-    H1 = 200
-    H2 = 20
+    H1 = 150
+    H2 = 10
     D_out = 1
     p = 0.5
     return DenseNet(D_in, H1, H2, D_out, p)
