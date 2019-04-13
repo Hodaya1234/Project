@@ -90,8 +90,8 @@ def main(path):
 
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
         train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
+
         net = dense_net.get_model(D_in)
-        # net = dense_net.init_weights(net)
         net, train_losses, validation_losses, test_losses = model.run_model(net, [train, valid, test], cv=cv)
 
         data_io.save_to(net, settings.files['net'], 'net')
