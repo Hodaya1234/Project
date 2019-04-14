@@ -16,13 +16,12 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
     if cv:
         train_loaders = []
         for train_d in train_dataset:
-            train_loaders.append(data_utils.DataLoader(train_d, batch_size=16, shuffle=True))
+            train_loaders.append(data_utils.DataLoader(train_d, batch_size=32, shuffle=True))
         for e in range(n_epochs):
             scheduler.step()
             for one_train_loader, one_valid_set, one_test_set in zip(train_loaders, valid_dataset, test_dataset):
                 epoch_train_loss = []
-                epoch_valid_loss = []
-                epoch_test_loss = []
+
                 model.train()
                 for x, y in one_train_loader:
                     optimizer.zero_grad()
@@ -36,30 +35,24 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
                 model.eval()
                 outputs = model(one_valid_set.all_x)
                 outputs = outputs.view(outputs.numel())
-                loss = loss_fn(outputs, one_valid_set.all_y).item()
-                epoch_valid_loss.append(loss)
+                epoch_valid_loss = loss_fn(outputs, one_valid_set.all_y).item()
 
                 outputs = model(one_test_set.all_x)
                 outputs = outputs.view(outputs.numel())
-                loss = loss_fn(outputs, one_test_set.all_y).item()
-                epoch_test_loss.append(loss)
+                epoch_test_loss = loss_fn(outputs, one_test_set.all_y).item()
+
+                predictions = torch.round(outputs).int().view(outputs.numel())
+                epoch_test_acc = (predictions == one_test_set.all_y.int()).sum().item()
 
                 train_losses.append(sum(epoch_train_loss) / len(epoch_train_loss))
-                valid_losses.append(sum(epoch_valid_loss) / len(epoch_valid_loss))
-                test_losses.append(sum(epoch_test_loss) / len(epoch_test_loss))
+                valid_losses.append(epoch_valid_loss)
+                test_losses.append(epoch_test_loss)
+                test_accuracies.append(epoch_test_acc)
 
             if e % 2 == 0:
                 print("{}. train loss: {}   valid_loss: {}  test_loss: {}".format(
                     e, train_losses[-1], valid_losses[-1], test_losses[-1]))
-                test_y_int = test_dataset[0].all_y.int()
-                outputs = model(test_dataset[0].all_x)
-                outputs = outputs.view(outputs.numel())
-                predictions = torch.round(outputs).int().view(outputs.numel())
-                correct = (predictions == test_y_int).sum().item()
-                test_accuracies.append(correct)
-                print('mean pred of y=0: {}\tmean pred of y=1: {}'.format(
-                    torch.mean(outputs[test_y_int == 0]).item(), torch.mean(outputs[test_y_int == 1]).item()))
-                print('accuracy on the augmented data: {0:.2f}'.format(correct / len(test_y_int)))
+
 
     else:
         train_loader = data_utils.DataLoader(train_dataset, batch_size=32, shuffle=True)
@@ -95,6 +88,9 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
     return model, train_losses, valid_losses, test_losses
 
 
+# def tune_parameters(model, data_sets, cv=True)
+
+
 def run_model(model, data_sets, cv=True):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("available devices: {}".format(torch.cuda.device_count()))
@@ -102,9 +98,9 @@ def run_model(model, data_sets, cv=True):
 
     model = model.double().to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [5])
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [4])
     loss_fn = nn.BCELoss()
-    n_epochs = 10
+    n_epochs = 15
 
     model, train_losses, validation_losses, test_losses = train_model(model, train_dataset,
                                                                       valid_dataset, train_dataset, optimizer,
@@ -123,7 +119,7 @@ def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):
     return accuracy, mean_loss
 
 
-def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_type='segments', value_type='loss'):
+def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_type='segments', zero_all=True, value_type='loss'):
     seg_numbers = np.unique(segments_map)
     if seg_numbers[0] == 0:
         seg_numbers = seg_numbers[1:]
@@ -140,18 +136,24 @@ def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_typ
             test_x = one_test_set.all_x
             test_x = np.reshape(test_x, (-1, n_seg, n_frames))
             for idx in range(len(loss_map)):
-                new_test_x = test_x.clone()
-                if part_type == 'segments':
-                    new_test_x[:, idx, :] = 0
+                if zero_all:
+                    new_test_x = torch.zeros_like(test_x)
+                    if part_type == 'segments':
+                        new_test_x[:, idx, :] = test_x[:, idx, :]
+                    else:
+                        new_test_x[:, :, idx] = test_x[:, :, idx]
                 else:
-                    new_test_x[:, :, idx] = 0
+                    new_test_x = test_x.clone()
+                    if part_type == 'segments':
+                        new_test_x[:, idx, :] = 0
+                    else:
+                        new_test_x[:, :, idx] = 0
                 new_test_x = np.reshape(new_test_x, (-1, n_points))
                 curr_acc, curr_loss = test_model(model, new_test_x, one_test_set.all_y)
                 if value_type == 'loss':
                     loss_map[idx] += curr_loss
                 else:
                     loss_map[idx] += curr_acc
-        loss_map = np.divide(loss_map, len(test_set))
     else:
         n_points = test_set.all_x.shape[1]
         n_frames = int(n_points / n_seg)
