@@ -9,9 +9,20 @@ import scipy.io as sio
 import segment
 
 
-segs = np.load('temp_outputs/2511-a/seg.npz')
-mask = segs['mask']
-sio.savemat('test_vis', {'mask':mask})
+mask = np.load('temp_outputs/0212-a/mask.npy')
+seg_nums = np.unique(mask)
+n_seg = len(seg_nums) - 1 if seg_nums[0] == 0 else len(seg_nums)
+seg = np.load('temp_outputs/0212-a/seg.npz')
+seg_v = seg['seg_v']
+seg_h = seg['seg_h']
+seg_v = segment.recreate_image(mask, seg_v)
+seg_h = segment.recreate_image(mask, seg_h)
+sett = np.load('temp_outputs/0212-a/set.npz')
+sett = sett['train_x']
+n_frames = int(sett.shape[2] / n_seg)
+set0 = segment.recreate_image(mask, np.transpose(sett[0].reshape([-1, n_seg, n_frames]), [1, 2, 0]))
+set1 = segment.recreate_image(mask, np.transpose(sett[1].reshape([-1, n_seg, n_frames]), [1, 2, 0]))
+sio.savemat('mat output', {'mask':mask, 'seg_v':seg_v, 'seg_h':seg_h, 'set0':set0, 'set1':set1})
 
 # data_set = np.load('temp_outputs/set.npz')
 #

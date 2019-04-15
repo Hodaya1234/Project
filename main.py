@@ -65,7 +65,7 @@ def main(path):
     if 'mask' in settings.stages:
         # need v,h raw and frames
         v, h = data_io.read_from_file(settings.files['raw'], 'raw')
-        mask = segment.vert_horiz_seg(v[:, settings.frames, :], h[:, settings.frames, :])
+        mask = segment.vert_horiz_seg(v[:, settings.frames, :], h[:, settings.frames, :], square=True)
         data_io.save_to(mask, settings.files['mask'], 'mask')
 
     if 'seg' in settings.stages:
@@ -111,10 +111,10 @@ def main(path):
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
         train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
-        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames', zero_all=True)
+        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames', zero_all=False)
         visualize_res.plot_frame_loss(loss_map,
                                       [x + 1 for x in settings.frames])  # counting starts from 0, so the relevant frames are +1
-        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments', zero_all=True)
+        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments', zero_all=False)
         image = segment.recreate_image(mask, loss_map)
         visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
 

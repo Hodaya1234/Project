@@ -114,7 +114,7 @@ def recreate_image(segments_mask, segments_values):
     return images
 
 
-def segment_felz(data, background_mask, scale=37, sigma=0, min_size=9, max_n_seg=120):
+def segment_felz(data, background_mask, scale=36, sigma=0, min_size=7, max_n_seg=110):
     """
     Use the scikit-image implementation of felzenszwalb algorithm
     :param data: The original data, of dimensions [100 X 100 X n_frames*2] (The teo conditions are concatenated on the
@@ -235,23 +235,21 @@ def tune_parameters(img, bg_mask):
     :return: Show a figure presenting the result.
     """
     segments_images = []
-    scales = [10, 40]
-    sigmas = [0.1]
-    min_sizes = [5, 10]
+    scales = [35, 36, 37]
+    sigma = 0
+    min_sizes = [8, 9, 10]
     titles = []
     for scale in scales:
-        for sigma in sigmas:
-            for min_size in min_sizes:
-                current_segment = felzenszwalb(img, scale=scale, sigma=sigma, min_size=min_size)
-                segments_images.append(current_segment)
-                titles.append('scale={}, min_size={}, num_segments={}'.format(scale, min_size,
-                                                                              len(np.unique(current_segment))))
-    total_size = scales.__len__() * sigmas.__len__() * min_sizes.__len__()
+        for min_size in min_sizes:
+            current_segment = felzenszwalb(img, scale=scale, sigma=sigma, min_size=min_size)
+            segments_images.append(current_segment)
+            titles.append('scale={}, min_size={}, num_segments={}'.format(scale, min_size,
+                                                                          len(np.unique(current_segment))))
+    total_size = scales.__len__() * min_sizes.__len__()
     cols = int(np.floor(np.sqrt(total_size)))
     rows = int(np.ceil(np.sqrt(total_size)))
     fig, ax = plt.subplots(rows, cols)
     for i, seg in enumerate(segments_images):
-        print(i)
         segments = join_segmentations(bg_mask, seg)
         r = np.mod(i, rows)
         c = int(np.floor(i / rows))
