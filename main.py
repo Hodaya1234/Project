@@ -57,6 +57,7 @@ import dense_net
 import data_set
 import down_sample
 from read_settings import Settings
+import numpy as np
 
 
 def main(path):
@@ -111,12 +112,21 @@ def main(path):
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
         train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
+        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='both', zero_all=False)
+        loss_map = loss_map.reshape([-1, len(settings.frames)])
+        loss_maps = [np.mean(loss_map[:, frames], axis=1) for frames in settings.frame_groups]
+        images = [segment.recreate_image(mask, one_loss_map) for one_loss_map in loss_maps]
+        visualize_res.plot_spatial(images, settings.frame_groups_string, n_frames=len(images))
+
+
         loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames', zero_all=False)
-        visualize_res.plot_frame_loss(loss_map,
-                                      [x + 1 for x in settings.frames])  # counting starts from 0, so the relevant frames are +1
+        visualize_res.plot_temporal(loss_map,
+                                    [x + 1 for x in settings.frames])  # counting starts from 0, so the relevant frames are +1
         loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments', zero_all=False)
         image = segment.recreate_image(mask, loss_map)
-        visualize_res.plot_frame(image, "Average Loss for Each Missing Segment")
+        visualize_res.plot_spatial(image, "Average Loss for Each Missing Segment")
+
+
 
 
 parser = argparse.ArgumentParser()

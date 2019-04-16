@@ -4,6 +4,7 @@ import segment
 import scipy.io as sio
 from skimage.segmentation import find_boundaries
 
+
 def plot_losses(train_losses, validation_losses, test_losses, n_data_sets):
     places = [i for i in range(len(train_losses)) if i % n_data_sets == 0]
     labels = [str(i) for i in range(int(np.ceil(len(train_losses / n_data_sets))))]
@@ -34,26 +35,31 @@ def plot_weights(model_state, seg_mask):
     return image
 
 
-def plot_frame(frame, title, focus_on_high=False):
-    if np.array_equal(frame.shape, [1, 10000]) or np.array_equal(frame.shape, [10000, 1]) or np.array_equal(frame.shape, [10000,]):
-        new_frame = np.reshape(frame, (100, 100))
-    elif not np.array_equal(frame.shape, (100, 100)):
+def plot_spatial(frame, title, n_frames=1):
+    if len(np.reshape(frame, [-1, 1]) / n_frames) != 10000:
         return
-    else:
-        new_frame = np.copy(frame)
-    plt.figure()
-    plt.title(title)
-    min_val = np.min(new_frame[new_frame > 0])
-    max_val = np.max(new_frame)
-    if focus_on_high:
-        min_val = (3*min_val + max_val)/4
-    sio.savemat('loss_map', {'map':new_frame})
-    plt.imshow(new_frame, vmin=min_val, vmax=max_val)
-    plt.colorbar()
+    if n_frames == 1:
+        new_frame = np.reshape(np.copy(frame), [100, 100])
+        plt.figure()
+        plt.title(title)
+        min_val = np.min(new_frame[new_frame > 0])
+        max_val = np.max(new_frame)
+        plt.imshow(new_frame, vmin=min_val, vmax=max_val)
+        plt.colorbar()
+        plt.show()
+        return
+    fig, axs = plt.subplots(1, n_frames)
+    frames = frame.reshape([-1, 100, 100])
+    for ax, one_frame, one_title in zip(axs, frames, title):
+        min_val = np.min(one_frame[one_frame > 0])
+        max_val = np.max(one_frame)
+        ax.imshow(one_frame, vmin=min_val, vmax=max_val)
+        ax.colorbar()
+        ax.title(one_title)
     plt.show()
 
 
-def plot_frame_loss(losses, frames):
+def plot_temporal(losses, frames):
     plt.figure()
     plt.plot(frames, losses)
     plt.xlabel('frame number')

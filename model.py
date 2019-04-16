@@ -119,6 +119,17 @@ def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):
     return accuracy, mean_loss
 
 
+def get_all_missing_indexes(n_ponits, n_seg, n_frames, part_type):
+    index_array = np.asarray(list(range(n_ponits)))
+    if part_type == 'both':
+        return index_array
+    index_array = np.reshape(index_array, [n_seg, n_frames])
+    if part_type == 'segments':
+        return np.asarray([index_array[i, :] for i in range(n_seg)])
+    if part_type == 'frames':
+        return np.asarray([index_array[:, i] for i in range(n_frames)])
+
+
 def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_type='segments', zero_all=True, value_type='loss'):
     seg_numbers = np.unique(segments_map)
     if seg_numbers[0] == 0:
@@ -127,33 +138,31 @@ def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_typ
     n_points = n_frames * n_seg
     if part_type == 'segments':
         loss_map = np.zeros(n_seg)
-    else:
+    elif part_type == 'frames':
         loss_map = np.zeros(n_frames)
+    elif part_type == 'both':
+        loss_map = np.zeros(n_points)
 
     if cv:
         # test_x: n_examples X n_segments * n_frames
         for one_test_set in test_set:
             test_x = one_test_set.all_x
-            test_x = np.reshape(test_x, (-1, n_seg, n_frames))
-            for idx in range(len(loss_map)):
+            all_indexes = get_all_missing_indexes(n_points, n_seg, n_frames, part_type)
+            for iter, indexes in enumerate(all_indexes):
                 if zero_all:
-                    new_test_x = torch.zeros_like(test_x)
-                    if part_type == 'segments':
-                        new_test_x[:, idx, :] = test_x[:, idx, :]
-                    else:
-                        new_test_x[:, :, idx] = test_x[:, :, idx]
+                    new_test_x = np.zeros_like(test_x)
+                    new_test_x[:, indexes] = test_x[:, indexes]
                 else:
                     new_test_x = test_x.clone()
-                    if part_type == 'segments':
-                        new_test_x[:, idx, :] = 0
-                    else:
-                        new_test_x[:, :, idx] = 0
-                new_test_x = np.reshape(new_test_x, (-1, n_points))
+                    new_test_x[:, indexes] = 0
+
                 curr_acc, curr_loss = test_model(model, new_test_x, one_test_set.all_y)
                 if value_type == 'loss':
-                    loss_map[idx] += curr_loss
+                    loss_map[iter] += curr_loss
                 else:
-                    loss_map[idx] += curr_acc
+                    loss_map[iter] += curr_acc
+        loss_map = np.divide(loss_map, len(test_set))
+
     else:
         n_points = test_set.all_x.shape[1]
         n_frames = int(n_points / n_seg)

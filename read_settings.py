@@ -19,6 +19,18 @@ class Settings:
                 self.sizes[words[1].strip()] = int(words[2].strip())
                 self.sizes[words[3].strip()] = int(words[4].strip())
                 self.sizes[words[5].strip()] = int(words[6].strip())
+            elif line_key == 'frame_groups':
+                frame_groups = []
+                first_frame = self.frames[0]
+                prev_num = first_frame
+                numbers = [int(n.strip()) for n in words[1:]]
+                numbers.append(self.frames[-1] + 1) # make the last frame included
+                for num in numbers:
+                    frame_groups.append(list(range(prev_num - first_frame, num - first_frame)))
+                    prev_num = num
+                self.frame_groups = frame_groups
+                self.frame_groups_string = ['frames {}-{}'.format(g[0] + first_frame, g[-1] + first_frame) for g in frame_groups]
+
             else:
                 self.files[line_key] = words[1].strip()
 
@@ -35,5 +47,5 @@ los temp_outputs/los1.npz
 frames 27 53
 sizes train 50 valid 10 test 1
 flag cv
-flag down_sample
+frame_groups 33 41
 """
