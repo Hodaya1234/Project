@@ -115,7 +115,7 @@ def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):
     mean_loss = loss_fn(outputs, test_y.double()).item()
 
     predictions = torch.round(outputs).int().view(outputs.numel())
-    accuracy = (predictions == test_y.int()).sum().item()
+    accuracy = (predictions == test_y.int()).sum().item() / len(test_y)
     return accuracy, mean_loss
 
 
@@ -150,7 +150,7 @@ def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_typ
             all_indexes = get_all_missing_indexes(n_points, n_seg, n_frames, part_type)
             for iter, indexes in enumerate(all_indexes):
                 if zero_all:
-                    new_test_x = np.zeros_like(test_x)
+                    new_test_x = torch.zeros_like(test_x)
                     new_test_x[:, indexes] = test_x[:, indexes]
                 else:
                     new_test_x = test_x.clone()

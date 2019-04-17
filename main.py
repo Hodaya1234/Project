@@ -103,30 +103,46 @@ def main(path):
         train_losses, validation_losses, test_losses, n_data_sets = data_io.read_from_file(settings.files['los'], 'los')
         visualize_res.plot_losses(train_losses, validation_losses, test_losses, n_data_sets)
 
-    if 'vis' in settings.stages:
+    if 'calc_vis' in settings.stages:
         net = data_io.read_from_file(settings.files['net'], 'net')
         data_sets = data_io.read_from_file(settings.files['set'], 'set')
         mask = data_io.read_from_file(settings.files['mask'], 'mask')
         cv = 'cv' in settings.flags
+        zero_all = 'zero_all' in settings.flags
+        value_type = 'acc' if 'acc' in settings.flags else 'loss'
 
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
         train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
-        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='both', zero_all=False)
+        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='both', zero_all=zero_all, value_type=value_type)
         loss_map = loss_map.reshape([-1, len(settings.frames)])
         loss_maps = [np.mean(loss_map[:, frames], axis=1) for frames in settings.frame_groups]
-        images = [segment.recreate_image(mask, one_loss_map) for one_loss_map in loss_maps]
+        images = np.asarray([segment.recreate_image(mask, one_loss_map) for one_loss_map in loss_maps])
+        data_io.save_to(images, settings.files['vis_both'], 'vis')
+
+        loss_map = np.asarray(model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames', zero_all=zero_all, value_type=value_type))
+        data_io.save_to(loss_map, settings.files['vis_frame'], 'vis')
+
+        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments', zero_all=zero_all, value_type=value_type)
+        image = segment.recreate_image(mask, loss_map)
+        data_io.save_to(image, settings.files['vis_seg'], 'vis')
+
+    if 'show_vis' in settings.stages:
+        zero_all = 'zero_all' in settings.flags
+        value_type = 'acc' if 'acc' in settings.flags else 'loss'
+        zero_all_str = 'Present' if zero_all else 'Missing'
+        value_type_str = 'Accuracy' if value_type == 'acc' else 'Loss'
+        title_seg = 'Average {} per {} Segment'.format(value_type_str, zero_all_str)
+        title_frame = 'Average {} per {} Frame'.format(value_type_str, zero_all_str)
+
+        images = data_io.read_from_file(settings.files['vis_both'], 'vis')
         visualize_res.plot_spatial(images, settings.frame_groups_string, n_frames=len(images))
 
+        loss_map = data_io.read_from_file(settings.files['vis_frame'], 'vis')
+        visualize_res.plot_temporal(loss_map, [x + 1 for x in settings.frames], title=title_frame)  # counting starts from 0, so the relevant frames are +1
 
-        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames', zero_all=False)
-        visualize_res.plot_temporal(loss_map,
-                                    [x + 1 for x in settings.frames])  # counting starts from 0, so the relevant frames are +1
-        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments', zero_all=False)
-        image = segment.recreate_image(mask, loss_map)
-        visualize_res.plot_spatial(image, "Average Loss for Each Missing Segment")
-
-
+        image = data_io.read_from_file(settings.files['vis_seg'], 'vis')
+        visualize_res.plot_spatial(image, title=title_seg)
 
 
 parser = argparse.ArgumentParser()

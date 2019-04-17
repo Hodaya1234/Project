@@ -3,9 +3,10 @@ from matplotlib import pyplot as plt
 import segment
 import scipy.io as sio
 from skimage.segmentation import find_boundaries
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def plot_losses(train_losses, validation_losses, test_losses, n_data_sets):
+def plot_losses(train_losses, validation_losses, test_losses, n_data_sets, title='Losses as a Function of Epochs'):
     places = [i for i in range(len(train_losses)) if i % n_data_sets == 0]
     labels = [str(i) for i in range(int(np.ceil(len(train_losses / n_data_sets))))]
     plt.figure()
@@ -14,7 +15,7 @@ def plot_losses(train_losses, validation_losses, test_losses, n_data_sets):
     plt.plot(test_losses, label="test (original examples left out)")
     plt.xticks(places, labels)
     plt.legend()
-    plt.title('Losses as a Function of Epochs')
+    plt.title(title)
     plt.xlabel('epoch')
     plt.ylabel('loss')
     plt.show()
@@ -36,7 +37,7 @@ def plot_weights(model_state, seg_mask):
 
 
 def plot_spatial(frame, title, n_frames=1):
-    if len(np.reshape(frame, [-1, 1]) / n_frames) != 10000:
+    if int(len(np.reshape(frame, [-1, 1])) / n_frames) != 10000:
         return
     if n_frames == 1:
         new_frame = np.reshape(np.copy(frame), [100, 100])
@@ -53,18 +54,22 @@ def plot_spatial(frame, title, n_frames=1):
     for ax, one_frame, one_title in zip(axs, frames, title):
         min_val = np.min(one_frame[one_frame > 0])
         max_val = np.max(one_frame)
-        ax.imshow(one_frame, vmin=min_val, vmax=max_val)
-        ax.colorbar()
-        ax.title(one_title)
+        im = ax.imshow(one_frame, vmin=min_val, vmax=max_val)
+        ax.set_title(one_title)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        fig.colorbar(im, cax=cax)
+        ax.set_yticklabels([])
+        ax.set_xticklabels([])
     plt.show()
 
 
-def plot_temporal(losses, frames):
+def plot_temporal(losses, frames, title='Loss Per Missing Frame'):
     plt.figure()
     plt.plot(frames, losses)
     plt.xlabel('frame number')
     plt.ylabel('average loss')
-    plt.title('Loss Per Missing Frame')
+    plt.title(title)
     plt.show()
 
 

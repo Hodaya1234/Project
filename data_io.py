@@ -53,6 +53,8 @@ def read_from_file(folder_name, flag):
         return data
     if flag == 'net':
         return torch.load(folder_name)
+    if flag == 'vis':
+        return np.load(folder_name)
 
 
 def save_to(data, folder_name, flag):
@@ -96,3 +98,5 @@ def save_to(data, folder_name, flag):
     elif flag == 'net':
         net = data
         torch.save(net, folder_name)
+    elif flag == 'vis':
+        np.save(arr=data, file=folder_name)

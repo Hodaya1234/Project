@@ -37,15 +37,18 @@ class Settings:
 
 # EXAMPLE
 """
-mask seg set net los vis
-raw temp_outputs/clean.mat
-mask temp_outputs/mask.npy
-seg temp_outputs/seg.npz
-set temp_outputs/set.npz
-net temp_outputs/net1.pt
-los temp_outputs/los1.npz
-frames 27 53
+mask seg set net los calc_vis show_vis
+mask temp_outputs/0212-a/mask.npy
+seg temp_outputs/0212-a/seg.npz
+set temp_outputs/0212-a/set.npz
+net temp_outputs/0212-a/net.pt
+los temp_outputs/0212-a/los.npz
+vis_both temp_outputs/0212-a/vis_both.npy
+vis_seg temp_outputs/0212-a/vis_seg.npy
+vis_frame temp_outputs/0212-a/vis_frame.npy
+frames 27 50
 sizes train 50 valid 10 test 1
 flag cv
 frame_groups 33 41
+
 """
