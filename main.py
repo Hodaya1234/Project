@@ -93,14 +93,14 @@ def main(path):
         train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
         net = dense_net.get_model(D_in)
-        net, train_losses, validation_losses, test_losses = model.run_model(net, [train, valid, test], cv=cv)
+        net, train_losses, validation_losses, test_losses, test_accuracies = model.run_model(net, [train, valid, test], cv=cv)
 
         data_io.save_to(net, settings.files['net'], 'net')
         n_data_sets = len(data_sets[0]) if cv else 1
-        data_io.save_to([train_losses, validation_losses, test_losses, n_data_sets], settings.files['los'], 'los')
+        data_io.save_to([train_losses, validation_losses, test_losses, test_accuracies, n_data_sets], settings.files['los'], 'los')
 
     if 'los' in settings.stages:
-        train_losses, validation_losses, test_losses, n_data_sets = data_io.read_from_file(settings.files['los'], 'los')
+        train_losses, validation_losses, test_losses, test_accuracies, n_data_sets = data_io.read_from_file(settings.files['los'], 'los')
         visualize_res.plot_losses(train_losses, validation_losses, test_losses, n_data_sets)
 
     if 'calc_vis' in settings.stages:

@@ -7,13 +7,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def plot_losses(train_losses, validation_losses, test_losses, n_data_sets, title='Losses as a Function of Epochs'):
-    places = [i for i in range(len(train_losses)) if i % n_data_sets == 0]
-    labels = [str(i) for i in range(int(np.ceil(len(train_losses / n_data_sets))))]
+    if n_data_sets > 1:
+        train_losses = np.mean(train_losses, axis=0)
+        validation_losses = np.mean(validation_losses, axis=0)
+        test_losses = np.mean(test_losses, axis=0)
     plt.figure()
     plt.plot(train_losses, label="train")
     plt.plot(validation_losses, label="validation")
     plt.plot(test_losses, label="test (original examples left out)")
-    plt.xticks(places, labels)
     plt.legend()
     plt.title(title)
     plt.xlabel('epoch')

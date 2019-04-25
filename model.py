@@ -8,60 +8,68 @@ import torch.utils.data as data_utils
 import data_set
 
 
-def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, scheduler, loss_fn, n_epochs, cv):
+def train_single_data_set(model, train_dataset, valid_dataset, test_dataset, optimizer, scheduler, loss_fn, n_epochs):
     train_losses = []
     valid_losses = []
     test_losses = []
     test_accuracies = []
-    if cv:
-        train_loaders = []
-        for train_d in train_dataset:
-            train_loaders.append(data_utils.DataLoader(train_d, batch_size=32, shuffle=True))
-        for e in range(n_epochs):
-            scheduler.step()
-            for one_train_loader, one_valid_set, one_test_set in zip(train_loaders, valid_dataset, test_dataset):
-                epoch_train_loss = []
+    train_loader = data_utils.DataLoader(train_dataset, batch_size=32, shuffle=True)
+    test_y_int = test_dataset.all_y.int()
+    for e in range(n_epochs):
+        scheduler.step()
+        epoch_train_loss = []
+        model.train()
+        for x, y in train_loader:
+            optimizer.zero_grad()
+            y_pred = model(x)
+            y_pred = y_pred.view(y_pred.numel())
+            loss = loss_fn(y_pred, y)
+            loss.backward()
+            optimizer.step()
+            epoch_train_loss.append(loss.item())
+        train_loss_mean = sum(epoch_train_loss) / len(epoch_train_loss)
+        train_losses.append(train_loss_mean)
 
-                model.train()
-                for x, y in one_train_loader:
-                    optimizer.zero_grad()
-                    y_pred = model(x)
-                    y_pred = y_pred.view(y_pred.numel())
-                    loss = loss_fn(y_pred, y)
-                    loss.backward()
-                    optimizer.step()
-                    epoch_train_loss.append(loss.item())
+        model.eval()
+        outputs = model(valid_dataset.all_x)
+        outputs = outputs.view(outputs.numel())
+        loss = loss_fn(outputs, valid_dataset.all_y).item()
+        valid_losses.append(loss)
 
-                model.eval()
-                outputs = model(one_valid_set.all_x)
-                outputs = outputs.view(outputs.numel())
-                epoch_valid_loss = loss_fn(outputs, one_valid_set.all_y).item()
+        outputs = model(test_dataset.all_x)
+        outputs = outputs.view(outputs.numel())
+        loss = loss_fn(outputs, test_dataset.all_y).item()
+        test_losses.append(loss)
 
-                outputs = model(one_test_set.all_x)
-                outputs = outputs.view(outputs.numel())
-                epoch_test_loss = loss_fn(outputs, one_test_set.all_y).item()
+        predictions = torch.round(outputs).int().view(outputs.numel())
+        accuracy = (predictions == test_y_int).sum().item() / len(test_y_int)
+        test_accuracies.append(accuracy)
 
-                predictions = torch.round(outputs).int().view(outputs.numel())
-                epoch_test_acc = (predictions == one_test_set.all_y.int()).sum().item()
+        if e % 5 == 0:
+            print("{}. train loss: {}   valid_loss: {}  test_loss: {}".format(
+                e, train_losses[-1], valid_losses[-1], test_losses[-1]))
 
-                train_losses.append(sum(epoch_train_loss) / len(epoch_train_loss))
-                valid_losses.append(epoch_valid_loss)
-                test_losses.append(epoch_test_loss)
-                test_accuracies.append(epoch_test_acc)
-
-            if e % 2 == 0:
-                print("{}. train loss: {}   valid_loss: {}  test_loss: {}".format(
-                    e, train_losses[-1], valid_losses[-1], test_losses[-1]))
+    return model, train_losses, valid_losses, test_losses, test_accuracies
 
 
-    else:
-        train_loader = data_utils.DataLoader(train_dataset, batch_size=32, shuffle=True)
-        valid_y_int = valid_dataset.all_y.int()
+def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, scheduler, loss_fn, n_epochs, cv):
+    # TODO reorganize this
+    n_sets = len(train_dataset)
+    train_losses = np.zeros([n_sets, n_epochs])
+    valid_losses = np.zeros_like(train_losses)
+    test_losses = np.zeros_like(train_losses)
+    test_accuracies = np.zeros_like(train_losses)
+    train_loaders = []
+    for train_d in train_dataset:
+        train_loaders.append(data_utils.DataLoader(train_d, batch_size=32, shuffle=True))
+    for idx, one_train_loader, one_valid_set, one_test_set in zip(range(n_sets), train_loaders, valid_dataset,
+                                                                  test_dataset):
         for e in range(n_epochs):
             scheduler.step()
             epoch_train_loss = []
+
             model.train()
-            for x, y in train_loader:
+            for x, y in one_train_loader:
                 optimizer.zero_grad()
                 y_pred = model(x)
                 y_pred = y_pred.view(y_pred.numel())
@@ -69,26 +77,29 @@ def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, sc
                 loss.backward()
                 optimizer.step()
                 epoch_train_loss.append(loss.item())
-            train_loss_mean = sum(epoch_train_loss) / len(epoch_train_loss)
-            train_losses.append(train_loss_mean)
+
             model.eval()
-            outputs = model(valid_dataset.all_x)
+            outputs = model(one_valid_set.all_x)
             outputs = outputs.view(outputs.numel())
-            loss = loss_fn(outputs, valid_dataset.all_y).item()
-            valid_losses.append(loss)
-            if e % 10 == 0:
-                print("{}. train loss: {}   test_loss: {}".format(e, train_loss_mean, loss))
-                correct = 0
-                predictions = torch.round(outputs).int().view(outputs.numel())
-                correct += (predictions == valid_y_int).sum().item()
-                print('mean pred of y=0: {}\tmean pred of y=1: {}\taccuracy on the augmented data: {}'.format(
-                    torch.mean(outputs[valid_y_int == 0]).item(), torch.mean(outputs[valid_y_int == 1]).item(),
-                    correct / len(valid_y_int)))
+            epoch_valid_loss = loss_fn(outputs, one_valid_set.all_y).item()
 
-    return model, train_losses, valid_losses, test_losses
+            outputs = model(one_test_set.all_x)
+            outputs = outputs.view(outputs.numel())
+            epoch_test_loss = loss_fn(outputs, one_test_set.all_y).item()
 
+            predictions = torch.round(outputs).int().view(outputs.numel())
+            epoch_test_acc = (predictions == one_test_set.all_y.int()).sum().item()
 
-# def tune_parameters(model, data_sets, cv=True)
+            train_losses[idx, e] = sum(epoch_train_loss) / len(epoch_train_loss)
+            valid_losses[idx, e] = epoch_valid_loss
+            test_losses[idx, e] = epoch_test_loss
+            test_accuracies[idx, e] = epoch_test_acc
+
+            if e % 2 == 0:
+                print("{}. train loss: {}   valid_loss: {}  test_loss: {}".format(
+                    e, sum(epoch_train_loss) / len(epoch_train_loss), epoch_valid_loss, epoch_test_loss))
+
+    return model, train_losses, valid_losses, test_losses, test_accuracies
 
 
 def run_model(model, data_sets, cv=True):
@@ -100,13 +111,35 @@ def run_model(model, data_sets, cv=True):
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [4])
     loss_fn = nn.BCELoss()
-    n_epochs = 15
-
-    model, train_losses, validation_losses, test_losses = train_model(model, train_dataset,
+    n_epochs = 50
+    if not cv:
+        model, train_losses, valid_losses, test_losses, test_accuracies = train_single_data_set(model, train_dataset,
                                                                       valid_dataset, train_dataset, optimizer,
-                                                                      scheduler, loss_fn, n_epochs, cv=cv)
+                                                                      scheduler, loss_fn, n_epochs)
+    else:
+        n_sets = len(train_dataset)
+        train_losses = np.zeros([n_sets, n_epochs])
+        valid_losses = np.zeros_like(train_losses)
+        test_losses = np.zeros_like(train_losses)
+        test_accuracies = np.zeros_like(train_losses)
+        train_loaders = []
+        for train_d in train_dataset:
+            train_loaders.append(data_utils.DataLoader(train_d, batch_size=32, shuffle=True))
+        for idx, one_train_loader, one_valid_set, one_test_set in zip(range(n_sets), train_loaders, valid_dataset,
+                                                                      test_dataset):
+            model.init_weight()
+            optimizer = optim.Adam(model.parameters(), lr=0.0001)
+            scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [4])
+            _, one_train_losses, one_valid_losses, one_test_losses, one_test_accuracies = train_single_data_set(model, train_dataset[idx],
+                                                                                        valid_dataset[idx], train_dataset[idx],
+                                                                                        optimizer,
+                                                                                        scheduler, loss_fn, n_epochs)
+            train_losses[idx, :] = one_train_losses
+            valid_losses[idx, :] = one_valid_losses
+            test_losses[idx, :] = one_test_losses
+            test_accuracies[idx, :] = one_test_accuracies
 
-    return model, train_losses, validation_losses, test_losses
+    return model, train_losses, valid_losses, test_losses, test_accuracies
 
 
 def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):

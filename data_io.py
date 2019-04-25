@@ -9,7 +9,6 @@ Can read several types of files here:
 
 from scipy import io as sio
 import numpy as np
-from collections import OrderedDict
 import torch
 
 
@@ -49,7 +48,7 @@ def read_from_file(folder_name, flag):
         return data
     if flag == 'los':
         with np.load(folder_name) as file:
-            data = file['train_losses'], file['validation_losses'], file['test_losses'], file['n_data_sets']
+            data = file['train_losses'], file['validation_losses'], file['test_losses'], file['test_accuracies'], file['n_data_sets']
         return data
     if flag == 'net':
         return torch.load(folder_name)
@@ -92,8 +91,8 @@ def save_to(data, folder_name, flag):
         np.savez(
             folder_name, train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
     elif flag == 'los':
-        train_losses, validation_losses, test_losses, n_data_sets = data
-        np.savez(folder_name, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses, n_data_sets=n_data_sets)
+        train_losses, validation_losses, test_losses, test_accuracies, n_data_sets = data
+        np.savez(folder_name, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses, test_accuracies=test_accuracies, n_data_sets=n_data_sets)
         return
     elif flag == 'net':
         net = data

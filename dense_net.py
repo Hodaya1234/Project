@@ -19,6 +19,9 @@ class DenseNet(nn.Module):
         x = torch.sigmoid(self.linear3(x))
         return x
 
+    def init_weight(self):
+        self.apply(weights_init)
+
 
 def get_model(D_in):
     H1 = 150
@@ -26,6 +29,11 @@ def get_model(D_in):
     D_out = 1
     p = 0.5
     return DenseNet(D_in, H1, H2, D_out, p)
+
+
+def weights_init(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform(m.weight.data)
 
 
 def init_weights(net):
