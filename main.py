@@ -48,16 +48,16 @@ flags: the type of data to start with. options: raw, seg, set and res.
 """
 
 import argparse
-import data_io
-import model
-import visualize_res
-import segment
-import create_data_set
-import dense_net
-import data_set
-import down_sample
-from read_settings import Settings
+
 import numpy as np
+import model
+import create_data_set
+import data_io
+import data_set
+import dense_net
+import segment
+import visualize_res
+from read_settings import Settings
 
 
 def main(path):
@@ -87,23 +87,56 @@ def main(path):
 
     if 'net' in settings.stages:
         cv = 'cv' in settings.flags
+        zero_all = 'zero_all' in settings.flags
+        value_type = 'acc' if 'acc' in settings.flags else 'loss'
         data_sets = data_io.read_from_file(settings.files['set'], 'set')
+        mask = data_io.read_from_file(settings.files['mask'], 'mask')
 
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
         train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
-        net = dense_net.get_model(D_in)
-        net, train_losses, validation_losses, test_losses, test_accuracies = model.run_model(net, [train, valid, test], cv=cv)
+        if not cv:
+            net = dense_net.get_model(D_in)
+            training_parameters = model.get_train_params(net)
+            net, train_losses, valid_losses, valid_accuracies = model.train(net, [train, test], training_parameters)
+            data_io.save_to(net, settings.files['net'], 'net')
 
-        data_io.save_to(net, settings.files['net'], 'net')
-        n_data_sets = len(data_sets[0]) if cv else 1
-        data_io.save_to([train_losses, validation_losses, test_losses, test_accuracies, n_data_sets], settings.files['los'], 'los')
+        else:
+            n_data_sets = len(train)
+            n_frames = len(settings.frames)
+            mask_nubmers = np.unique(mask)
+            n_seg = len(mask_nubmers) - 1 if mask_nubmers[0] == 0 else len(mask_nubmers)
+
+            frames_loss_maps = np.zeros([n_data_sets, n_frames])
+            seg_loss_maps = np.zeros([n_data_sets, n_seg])
+
+            for idx, one_train, one_test in zip(range(n_data_sets), train, test):
+                net = dense_net.get_model(D_in)
+                training_parameters = model.get_train_params(net)
+
+                net, train_losses, valid_losses, valid_accuracies = model.train(net, [one_train, one_test], training_parameters)
+                frames_loss_maps[idx,:] = np.asarray(
+                    model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames',
+                                                 zero_all=zero_all, value_type=value_type))
+                seg_loss_maps[idx,:] = model.run_with_missing_parts(
+                    net, mask, valid, cv, len(settings.frames),
+                    part_type='segments', zero_all=zero_all, value_type=value_type)
+
+            frame_loss = np.mean(frames_loss_maps, axis=0)
+            seg_loss = segment.recreate_image(mask, np.mean(seg_loss_maps, axis=0))
+            data_io.save_to(frame_loss, settings.files['vis_frame'], 'vis')
+            data_io.save_to(seg_loss, settings.files['vis_seg'], 'vis')
+
+        # n_data_sets = len(data_sets[0]) if cv else 1
+        # data_io.save_to([train_losses, validation_losses, test_losses, test_accuracies, n_data_sets], settings.files['los'], 'los')
 
     if 'los' in settings.stages:
+        # TODO: update
         train_losses, validation_losses, test_losses, test_accuracies, n_data_sets = data_io.read_from_file(settings.files['los'], 'los')
         visualize_res.plot_losses(train_losses, validation_losses, test_losses, n_data_sets)
 
     if 'calc_vis' in settings.stages:
+        # TODO: remove
         net = data_io.read_from_file(settings.files['net'], 'net')
         data_sets = data_io.read_from_file(settings.files['set'], 'set')
         mask = data_io.read_from_file(settings.files['mask'], 'mask')
@@ -135,8 +168,8 @@ def main(path):
         title_seg = 'Average {} per {} Segment'.format(value_type_str, zero_all_str)
         title_frame = 'Average {} per {} Frame'.format(value_type_str, zero_all_str)
 
-        images = data_io.read_from_file(settings.files['vis_both'], 'vis')
-        visualize_res.plot_spatial(images, settings.frame_groups_string, n_frames=len(images))
+        # images = data_io.read_from_file(settings.files['vis_both'], 'vis')
+        # visualize_res.plot_spatial(images, settings.frame_groups_string, n_frames=len(images))
 
         loss_map = data_io.read_from_file(settings.files['vis_frame'], 'vis')
         visualize_res.plot_temporal(loss_map, [x + 1 for x in settings.frames], title=title_frame)  # counting starts from 0, so the relevant frames are +1

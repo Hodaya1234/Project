@@ -8,13 +8,18 @@ import torch.utils.data as data_utils
 import data_set
 
 
-def train_single_data_set(model, train_dataset, valid_dataset, test_dataset, optimizer, scheduler, loss_fn, n_epochs):
+def train(model, datasets, parameters):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.double().to(device)
+
+    train_dataset, valid_dataset = datasets
+    loss_fn, n_epochs, optimizer, scheduler = parameters
+
     train_losses = []
     valid_losses = []
-    test_losses = []
-    test_accuracies = []
-    train_loader = data_utils.DataLoader(train_dataset, batch_size=32, shuffle=True)
-    test_y_int = test_dataset.all_y.int()
+    valid_accuracies = []
+    train_loader = data_utils.DataLoader(train_dataset, batch_size=16, shuffle=True)
+    valid_y_int = valid_dataset.all_y.int()
     for e in range(n_epochs):
         scheduler.step()
         epoch_train_loss = []
@@ -36,110 +41,21 @@ def train_single_data_set(model, train_dataset, valid_dataset, test_dataset, opt
         loss = loss_fn(outputs, valid_dataset.all_y).item()
         valid_losses.append(loss)
 
-        outputs = model(test_dataset.all_x)
-        outputs = outputs.view(outputs.numel())
-        loss = loss_fn(outputs, test_dataset.all_y).item()
-        test_losses.append(loss)
-
         predictions = torch.round(outputs).int().view(outputs.numel())
-        accuracy = (predictions == test_y_int).sum().item() / len(test_y_int)
-        test_accuracies.append(accuracy)
+        accuracy = (predictions == valid_y_int).sum().item() / len(valid_y_int)
+        valid_accuracies.append(accuracy)
 
-        if e % 5 == 0:
-            print("{}. train loss: {}   valid_loss: {}  test_loss: {}".format(
-                e, train_losses[-1], valid_losses[-1], test_losses[-1]))
+        if e % 2 == 0:
+            print("{}. train loss: {}   valid_loss: {}  valid-acc:{}".format(
+                e, train_losses[-1], valid_losses[-1], valid_accuracies[-1]))
 
-    return model, train_losses, valid_losses, test_losses, test_accuracies
-
-
-def train_model(model, train_dataset, valid_dataset, test_dataset, optimizer, scheduler, loss_fn, n_epochs, cv):
-    # TODO reorganize this
-    n_sets = len(train_dataset)
-    train_losses = np.zeros([n_sets, n_epochs])
-    valid_losses = np.zeros_like(train_losses)
-    test_losses = np.zeros_like(train_losses)
-    test_accuracies = np.zeros_like(train_losses)
-    train_loaders = []
-    for train_d in train_dataset:
-        train_loaders.append(data_utils.DataLoader(train_d, batch_size=32, shuffle=True))
-    for idx, one_train_loader, one_valid_set, one_test_set in zip(range(n_sets), train_loaders, valid_dataset,
-                                                                  test_dataset):
-        for e in range(n_epochs):
-            scheduler.step()
-            epoch_train_loss = []
-
-            model.train()
-            for x, y in one_train_loader:
-                optimizer.zero_grad()
-                y_pred = model(x)
-                y_pred = y_pred.view(y_pred.numel())
-                loss = loss_fn(y_pred, y)
-                loss.backward()
-                optimizer.step()
-                epoch_train_loss.append(loss.item())
-
-            model.eval()
-            outputs = model(one_valid_set.all_x)
-            outputs = outputs.view(outputs.numel())
-            epoch_valid_loss = loss_fn(outputs, one_valid_set.all_y).item()
-
-            outputs = model(one_test_set.all_x)
-            outputs = outputs.view(outputs.numel())
-            epoch_test_loss = loss_fn(outputs, one_test_set.all_y).item()
-
-            predictions = torch.round(outputs).int().view(outputs.numel())
-            epoch_test_acc = (predictions == one_test_set.all_y.int()).sum().item()
-
-            train_losses[idx, e] = sum(epoch_train_loss) / len(epoch_train_loss)
-            valid_losses[idx, e] = epoch_valid_loss
-            test_losses[idx, e] = epoch_test_loss
-            test_accuracies[idx, e] = epoch_test_acc
-
-            if e % 2 == 0:
-                print("{}. train loss: {}   valid_loss: {}  test_loss: {}".format(
-                    e, sum(epoch_train_loss) / len(epoch_train_loss), epoch_valid_loss, epoch_test_loss))
-
-    return model, train_losses, valid_losses, test_losses, test_accuracies
+    return model, train_losses, valid_losses, valid_accuracies
 
 
-def run_model(model, data_sets, cv=True):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("available devices: {}".format(torch.cuda.device_count()))
-    train_dataset, valid_dataset, test_dataset = data_set.data_to_cuda(data_sets, device, cv)  # DataSet objects
-
-    model = model.double().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [4])
-    loss_fn = nn.BCELoss()
-    n_epochs = 50
-    if not cv:
-        model, train_losses, valid_losses, test_losses, test_accuracies = train_single_data_set(model, train_dataset,
-                                                                      valid_dataset, train_dataset, optimizer,
-                                                                      scheduler, loss_fn, n_epochs)
-    else:
-        n_sets = len(train_dataset)
-        train_losses = np.zeros([n_sets, n_epochs])
-        valid_losses = np.zeros_like(train_losses)
-        test_losses = np.zeros_like(train_losses)
-        test_accuracies = np.zeros_like(train_losses)
-        train_loaders = []
-        for train_d in train_dataset:
-            train_loaders.append(data_utils.DataLoader(train_d, batch_size=32, shuffle=True))
-        for idx, one_train_loader, one_valid_set, one_test_set in zip(range(n_sets), train_loaders, valid_dataset,
-                                                                      test_dataset):
-            model.init_weight()
-            optimizer = optim.Adam(model.parameters(), lr=0.0001)
-            scheduler = optim.lr_scheduler.MultiStepLR(optimizer, [4])
-            _, one_train_losses, one_valid_losses, one_test_losses, one_test_accuracies = train_single_data_set(model, train_dataset[idx],
-                                                                                        valid_dataset[idx], train_dataset[idx],
-                                                                                        optimizer,
-                                                                                        scheduler, loss_fn, n_epochs)
-            train_losses[idx, :] = one_train_losses
-            valid_losses[idx, :] = one_valid_losses
-            test_losses[idx, :] = one_test_losses
-            test_accuracies[idx, :] = one_test_accuracies
-
-    return model, train_losses, valid_losses, test_losses, test_accuracies
+def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=60, lr=0.0005, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
+    optimizer = optimizer_type(model.parameters(), lr=lr)
+    scheduler = scheduler_type(optimizer, [10])
+    return [loss_fn, n_epochs, optimizer, scheduler]
 
 
 def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):
@@ -173,7 +89,7 @@ def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_typ
         loss_map = np.zeros(n_seg)
     elif part_type == 'frames':
         loss_map = np.zeros(n_frames)
-    elif part_type == 'both':
+    else: # part_type == 'both':
         loss_map = np.zeros(n_points)
 
     if cv:
