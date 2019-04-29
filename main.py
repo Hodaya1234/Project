@@ -109,16 +109,20 @@ def main(path):
 
             frames_loss_maps = np.zeros([n_data_sets, n_frames])
             seg_loss_maps = np.zeros([n_data_sets, n_seg])
-
+            all_train_losses = []
+            all_valid_losses = []
             for idx, one_train, one_test in zip(range(n_data_sets), train, test):
                 net = dense_net.get_model(D_in)
                 training_parameters = model.get_train_params(net)
 
                 net, train_losses, valid_losses, valid_accuracies = model.train(net, [one_train, one_test], training_parameters)
-                frames_loss_maps[idx,:] = np.asarray(
+
+                all_train_losses.append(train_losses)
+                all_valid_losses.append(valid_losses)
+                frames_loss_maps[idx, :] = np.asarray(
                     model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames',
                                                  zero_all=zero_all, value_type=value_type))
-                seg_loss_maps[idx,:] = model.run_with_missing_parts(
+                seg_loss_maps[idx, :] = model.run_with_missing_parts(
                     net, mask, valid, cv, len(settings.frames),
                     part_type='segments', zero_all=zero_all, value_type=value_type)
 
@@ -126,6 +130,7 @@ def main(path):
             seg_loss = segment.recreate_image(mask, np.mean(seg_loss_maps, axis=0))
             data_io.save_to(frame_loss, settings.files['vis_frame'], 'vis')
             data_io.save_to(seg_loss, settings.files['vis_seg'], 'vis')
+            visualize_res.plot_losses(all_train_losses, all_valid_losses, [], n_data_sets)
 
         # n_data_sets = len(data_sets[0]) if cv else 1
         # data_io.save_to([train_losses, validation_losses, test_losses, test_accuracies, n_data_sets], settings.files['los'], 'los')

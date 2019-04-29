@@ -87,6 +87,7 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
     :return: A list of the three data-sets, including the y targets.
     """
     if cv:
+        np.random.seed(1)
         train_sets_x = []
         validation_sets_x = []
         test_sets_x = []

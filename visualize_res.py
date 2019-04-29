@@ -4,13 +4,31 @@ import segment
 import scipy.io as sio
 from skimage.segmentation import find_boundaries
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.patches as mpatches
 
 
-def plot_losses(train_losses, validation_losses, test_losses, n_data_sets, title='Losses as a Function of Epochs'):
+def plot_losses(train_losses, validation_losses, test_losses, n_data_sets, title='Losses as a Function of Epochs', plot_all=True):
     if n_data_sets > 1:
-        train_losses = np.mean(train_losses, axis=0)
-        validation_losses = np.mean(validation_losses, axis=0)
-        test_losses = np.mean(test_losses, axis=0)
+        if plot_all:
+            plt.figure()
+            for t_loss in train_losses:
+                plt.plot(list(range(len(t_loss))), t_loss, 'b')
+            for v_loss in validation_losses:
+                plt.plot(list(range(len(v_loss))), v_loss, 'r')
+            # plt.legend()
+            blue_patch = mpatches.Patch(color='blue', label='Train')
+            red_patch = mpatches.Patch(color='red', label='Validation')
+            plt.legend(handles=[blue_patch, red_patch])
+
+            plt.title(title)
+            plt.xlabel('epoch')
+            plt.ylabel('loss')
+            plt.show()
+            return
+        else:
+            train_losses = np.mean(train_losses, axis=0)
+            validation_losses = np.mean(validation_losses, axis=0)
+            test_losses = np.mean(test_losses, axis=0)
     plt.figure()
     plt.plot(train_losses, label="train")
     plt.plot(validation_losses, label="validation")

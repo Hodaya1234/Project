@@ -52,9 +52,9 @@ def train(model, datasets, parameters):
     return model, train_losses, valid_losses, valid_accuracies
 
 
-def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=60, lr=0.0005, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
+def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=30, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
     optimizer = optimizer_type(model.parameters(), lr=lr)
-    scheduler = scheduler_type(optimizer, [10])
+    scheduler = scheduler_type(optimizer, [5, 10])
     return [loss_fn, n_epochs, optimizer, scheduler]
 
 
