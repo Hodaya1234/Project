@@ -92,11 +92,13 @@ def main(path):
         data_sets = data_io.read_from_file(settings.files['set'], 'set')
         mask = data_io.read_from_file(settings.files['mask'], 'mask')
 
-        train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
-        train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
+        # TODO: remove this
+        train, valid, test, D_in = create_data_set.turn_to_torch_dataset_old(data_sets, cv=cv)
 
         if not cv:
             net = dense_net.get_model(D_in)
+            mean_t, std_t = train.calc_mean_std()
+            train, valid, test = train.normalize(mean_t, std_t), valid.normalize(mean_t, std_t), test.normalize(mean_t, std_t)
             training_parameters = model.get_train_params(net)
             net, train_losses, valid_losses, valid_accuracies = model.train(net, [train, test], training_parameters)
             data_io.save_to(net, settings.files['net'], 'net')
@@ -112,18 +114,22 @@ def main(path):
             all_train_losses = []
             all_valid_losses = []
             for idx, one_train, one_test in zip(range(n_data_sets), train, test):
+                mean_t, std_t = one_train.calc_mean_std()
+                one_train, one_test = one_train.normalize(mean_t, std_t), one_test.normalize(mean_t, std_t)
+
                 net = dense_net.get_model(D_in)
                 training_parameters = model.get_train_params(net)
 
                 net, train_losses, valid_losses, valid_accuracies = model.train(net, [one_train, one_test], training_parameters)
-
+                if valid_losses[-1] > 0.6:
+                    print('\n{}\n'.format(idx))
                 all_train_losses.append(train_losses)
                 all_valid_losses.append(valid_losses)
                 frames_loss_maps[idx, :] = np.asarray(
-                    model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames',
+                    model.run_with_missing_parts(net, mask, one_test, False, len(settings.frames), part_type='frames',
                                                  zero_all=zero_all, value_type=value_type))
                 seg_loss_maps[idx, :] = model.run_with_missing_parts(
-                    net, mask, valid, cv, len(settings.frames),
+                    net, mask, one_test, False, len(settings.frames),
                     part_type='segments', zero_all=zero_all, value_type=value_type)
 
             frame_loss = np.mean(frames_loss_maps, axis=0)
@@ -149,7 +155,7 @@ def main(path):
         zero_all = 'zero_all' in settings.flags
         value_type = 'acc' if 'acc' in settings.flags else 'loss'
 
-        train, valid, test, D_in = create_data_set.turn_to_torch_dataset(data_sets, cv=cv)
+        train, valid, test, D_in = create_data_set.turn_to_torch_dataset_old(data_sets, cv=cv)
         train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
         loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='both', zero_all=zero_all, value_type=value_type)
@@ -177,7 +183,7 @@ def main(path):
         # visualize_res.plot_spatial(images, settings.frame_groups_string, n_frames=len(images))
 
         loss_map = data_io.read_from_file(settings.files['vis_frame'], 'vis')
-        visualize_res.plot_temporal(loss_map, [x + 1 for x in settings.frames], title=title_frame)  # counting starts from 0, so the relevant frames are +1
+        visualize_res.plot_temporal(loss_map, [x + 1 for x in settings.frames], title=title_frame, ylabel=value_type)  # counting starts from 0, so the relevant frames are +1
 
         image = data_io.read_from_file(settings.files['vis_seg'], 'vis')
         visualize_res.plot_spatial(image, title=title_seg)

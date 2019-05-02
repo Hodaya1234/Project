@@ -83,11 +83,11 @@ def plot_spatial(frame, title, n_frames=1):
     plt.show()
 
 
-def plot_temporal(losses, frames, title='Loss Per Missing Frame'):
+def plot_temporal(losses, frames, title='Loss Per Missing Frame', ylabel='loss'):
     plt.figure()
     plt.plot(frames, losses)
     plt.xlabel('frame number')
-    plt.ylabel('average loss')
+    plt.ylabel(ylabel)
     plt.title(title)
     plt.show()
 

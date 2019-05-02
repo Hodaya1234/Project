@@ -4,7 +4,11 @@ import torch
 from data_set import DataSet
 
 
-def turn_to_torch_dataset(data_sets, cv=True):
+def turn_to_torch_dataset(x,y):
+    return DataSet(torch.from_numpy(x), torch.from_numpy(y))
+
+
+def turn_to_torch_dataset_old(data_sets, cv=True):
     """
     This function is for the 'cv' data, that is made of dictionaries
     :param data_sets: numpy arrays of the the train, validation and test

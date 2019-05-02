@@ -45,6 +45,9 @@ def train(model, datasets, parameters):
         accuracy = (predictions == valid_y_int).sum().item() / len(valid_y_int)
         valid_accuracies.append(accuracy)
 
+        if e > 10 and np.mean(valid_losses[-5:]) - np.mean(valid_losses[-10:-5]) > 0:
+            print('finished at epoch {}'.format(e))
+            return model, train_losses, valid_losses, valid_accuracies
         if e % 2 == 0:
             print("{}. train loss: {}   valid_loss: {}  valid-acc:{}".format(
                 e, train_losses[-1], valid_losses[-1], valid_accuracies[-1]))
@@ -52,9 +55,9 @@ def train(model, datasets, parameters):
     return model, train_losses, valid_losses, valid_accuracies
 
 
-def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=30, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
+def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=70, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
     optimizer = optimizer_type(model.parameters(), lr=lr)
-    scheduler = scheduler_type(optimizer, [5, 10])
+    scheduler = scheduler_type(optimizer, [15, 30])
     return [loss_fn, n_epochs, optimizer, scheduler]
 
 
@@ -113,13 +116,20 @@ def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_typ
         loss_map = np.divide(loss_map, len(test_set))
 
     else:
-        n_points = test_set.all_x.shape[1]
-        n_frames = int(n_points / n_seg)
-        test_x = np.reshape(test_set.all_x, (-1, n_seg, n_frames))
-        for idx, num in enumerate(seg_numbers):
-            new_test_x = test_x.clone()
-            new_test_x = np.reshape(new_test_x, (-1, n_points))
-            new_test_x[:, idx, :] = 0
-            loss_map[idx], loss_map[idx] = test_model(model, new_test_x, test_set.all_y)
+        test_x = test_set.all_x
+        all_indexes = get_all_missing_indexes(n_points, n_seg, n_frames, part_type)
+        for iter, indexes in enumerate(all_indexes):
+            if zero_all:
+                new_test_x = torch.zeros_like(test_x)
+                new_test_x[:, indexes] = test_x[:, indexes]
+            else:
+                new_test_x = test_x.clone()
+                new_test_x[:, indexes] = 0
+
+            curr_acc, curr_loss = test_model(model, new_test_x, test_set.all_y)
+            if value_type == 'loss':
+                loss_map[iter] += curr_loss
+            else:
+                loss_map[iter] += curr_acc
 
     return loss_map
