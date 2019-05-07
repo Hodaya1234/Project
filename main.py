@@ -115,7 +115,8 @@ def main(path):
             all_valid_losses = []
             for idx, one_train, one_test in zip(range(n_data_sets), train, test):
                 mean_t, std_t = one_train.calc_mean_std()
-                one_train, one_test = one_train.normalize(mean_t, std_t), one_test.normalize(mean_t, std_t)
+                one_train = one_train.normalize(mean_t, std_t)
+                one_test = one_test.normalize(mean_t, std_t)
 
                 net = dense_net.get_model(D_in)
                 training_parameters = model.get_train_params(net)

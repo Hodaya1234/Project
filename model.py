@@ -45,7 +45,7 @@ def train(model, datasets, parameters):
         accuracy = (predictions == valid_y_int).sum().item() / len(valid_y_int)
         valid_accuracies.append(accuracy)
 
-        if e > 10 and np.mean(valid_losses[-5:]) - np.mean(valid_losses[-10:-5]) > 0:
+        if e > 15 and np.mean(valid_losses[-5:]) > np.mean(valid_losses[-10:-5]):
             print('finished at epoch {}'.format(e))
             return model, train_losses, valid_losses, valid_accuracies
         if e % 2 == 0:
@@ -57,7 +57,7 @@ def train(model, datasets, parameters):
 
 def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=70, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
     optimizer = optimizer_type(model.parameters(), lr=lr)
-    scheduler = scheduler_type(optimizer, [15, 30])
+    scheduler = scheduler_type(optimizer, [5, 30])
     return [loss_fn, n_epochs, optimizer, scheduler]
 
 

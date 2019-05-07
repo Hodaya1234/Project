@@ -13,14 +13,15 @@ def get_parameters(segmented_data):
         new_shape: the shape of the new data, usually [100 X 100 X n_frames].
         n_frames is given as the second dimension (if the first is 10,000) or the third (if the first two are 100X100)
     """
-    num_trials = segmented_data.shape[2]
-    arrayed_segments = segmented_data.reshape(-1, num_trials)  # squeeze the pixels and frames to a 1d vector.
-    num_pixels = arrayed_segments.shape[0]
-    mean_trials = np.nanmean(arrayed_segments, axis=1)
+    num_trials = segmented_data.shape[0]
+    # arrayed_segments = segmented_data.reshape(num_trials, -1)  # squeeze the pixels and frames to a 1d vector.
+    arrayed_segments = segmented_data
+    num_pixels = arrayed_segments.shape[1]
+    mean_trials = np.nanmean(arrayed_segments, axis=0)
 
-    cov_mat = np.cov(arrayed_segments)      # n_segments X n_segments
+    cov_mat = np.cov(arrayed_segments.T)      # n_segments X n_segments
     sqrt_cov = linalg.sqrtm(cov_mat).real   # n_segments X n_segments
-    new_shape = segmented_data.shape[:-1]   #
+    new_shape = segmented_data.shape[1:]   #
     parameters = [num_pixels, sqrt_cov, mean_trials, new_shape]
     return parameters
 
@@ -39,7 +40,7 @@ def get_new_data(parameters, n=10):
     num_pixels, sqrt_cov, mean_trials, new_shape = parameters
     data = []
     for _ in range(n):
-        random_mat = np.reshape(np.random.multivariate_normal(np.zeros(num_pixels), np.identity(num_pixels)), (1, -1))
+        random_mat = np.random.normal(0,1,num_pixels)
         new_example = (np.dot(random_mat, sqrt_cov) + mean_trials).reshape(new_shape)
         data.append(new_example)
     return np.asarray(data)

@@ -63,17 +63,12 @@ def get_train_test_indices(n_total, n_train, n_test, number_of_sets=1, random=Fa
         return all_train_indices, all_test_indices
 
 
-def create_one_data_sets(data, train_indices, test_indices, n_train, n_valid, n_test):
-    if n_test == 1:
-        test_set = np.expand_dims(np.squeeze(data[:, :, test_indices]), axis=0)
-    else:
-        test_set = np.transpose(data[:, :, test_indices], (2, 0, 1))
-    params = augment.get_parameters(data[:, :, train_indices])
+def create_one_data_sets(train, n_train, n_valid):
+    params = augment.get_parameters(train)
     train_set = augment.get_new_data(params, n_train)
-    original_train = np.transpose(data[:, :, train_indices], (2, 0, 1))
-    train_set = np.concatenate((train_set, original_train), 0)
+    train_set = np.concatenate((train_set, train), 0)
     valid_set = augment.get_new_data(params, n_valid)
-    return train_set, valid_set, test_set
+    return train_set, valid_set
 
 
 def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True, random=False):
@@ -90,26 +85,43 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
     :param random: true if the left out original trials should be picked at random, false if they should be picked by order.
     :return: A list of the three data-sets, including the y targets.
     """
+    seg_v, seg_h = np.transpose(seg_v, [2, 0, 1]), np.transpose(seg_h, [2, 0, 1])
+    num_v = seg_v.shape[0]
+    num_h = seg_h.shape[0]
+    seg_v = seg_v.reshape([num_v, -1])
+    seg_h = seg_h.reshape([num_h, -1])
+
     if cv:
-        np.random.seed(1)
         train_sets_x = []
         validation_sets_x = []
         test_sets_x = []
-        num_v = seg_v.shape[2]
-        num_h = seg_h.shape[2]
-        number_of_sets = min(num_v, num_h)       # if the data sets are not the same size, use the minimal size
-        n_original = number_of_sets - n_test  # number of original training examples for each set from which to create the augmented data
+
+        number_of_sets = num_v + num_h    # if the data sets are not the same size, use the minimal size
+        n_original = min(num_v, num_h) - n_test  # number of original training examples for each set from which to create the augmented data
         train_indices_v, test_indices_v = get_train_test_indices(num_v, n_original, n_test, number_of_sets=number_of_sets, random=random)
         train_indices_h, test_indices_h = get_train_test_indices(num_h, n_original, n_test, number_of_sets=number_of_sets, random=random)
 
         for i in range(number_of_sets):
-            train_set_v, valid_set_v, test_set_v = create_one_data_sets(seg_v, train_indices_v[i], test_indices_v[i],
-                                                                        n_train, n_valid, n_test)
-            train_set_h, valid_set_h, test_set_h = create_one_data_sets(seg_h, train_indices_h[i], test_indices_h[i],
-                                                                        n_train, n_valid, n_test)
+            test_v_i = seg_v[test_indices_v[i], :]
+            test_h_i = seg_h[test_indices_h[i], :]
+            test_x = np.concatenate((test_v_i, test_h_i), 0)
+
+            train_v_i = seg_v[train_indices_v[i],:]
+            train_h_i = seg_h[train_indices_h[i],:]
+
+            train_i = np.concatenate([train_v_i, train_h_i], axis=0)
+            mean_i = np.mean(train_i, axis=0)
+            std_i = np.std(train_i, axis=0)
+            mean_i = mean_i[np.newaxis,:]
+            std_i = std_i[np.newaxis,:]
+            train_v_i = np.divide(np.subtract(train_v_i, mean_i), std_i)
+            train_h_i = np.divide(np.subtract(train_h_i, mean_i), std_i)
+            test_x = np.divide(np.subtract(test_x, mean_i), std_i)
+
+            train_set_v, valid_set_v = create_one_data_sets(train_v_i, n_train, n_valid)
+            train_set_h, valid_set_h = create_one_data_sets(train_h_i, n_train, n_valid)
             train_x = np.concatenate((train_set_v, train_set_h), 0)
             valid_x = np.concatenate((valid_set_v, valid_set_h), 0)
-            test_x = np.concatenate((test_set_v, test_set_h), 0)
 
             print('finished train number ' + str(i))
             if flat_x:
