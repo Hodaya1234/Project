@@ -7,63 +7,64 @@ import matplotlib.pyplot as plt
 import create_data_set
 import scipy.io as sio
 import segment
+from sklearn import svm
+
+# read the original data
+data = sio.loadmat('Data/02.12/b/clean.mat')
+clean_v = data['clean_vert']
+clean_h = data['clean_horiz']
+n_v = clean_v.shape[2]
+n_h = clean_h.shape[2]
+min_num = min(n_v, n_h) - 2
+frames = list(range(27,68))
+n_frames = len(frames)
+down_v = np.transpose(clean_v[:,frames,:], [2, 0, 1])
+down_h = np.transpose(clean_h[:,frames,:], [2, 0, 1])
 
 
-mask = np.load('temp_outputs/0212-a/mask.npy')
-seg_nums = np.unique(mask)
-n_seg = len(seg_nums) - 1 if seg_nums[0] == 0 else len(seg_nums)
-seg = np.load('temp_outputs/0212-a/seg.npz')
-seg_v = seg['seg_v']
-seg_h = seg['seg_h']
-seg_v = segment.recreate_image(mask, seg_v)
-seg_h = segment.recreate_image(mask, seg_h)
-sett = np.load('temp_outputs/0212-a/set.npz')
-sett = sett['train_x']
-n_frames = int(sett.shape[2] / n_seg)
-set0 = segment.recreate_image(mask, np.transpose(sett[0].reshape([-1, n_seg, n_frames]), [1, 2, 0]))
-set1 = segment.recreate_image(mask, np.transpose(sett[1].reshape([-1, n_seg, n_frames]), [1, 2, 0]))
-sio.savemat('mat output', {'mask':mask, 'seg_v':seg_v, 'seg_h':seg_h, 'set0':set0, 'set1':set1})
+non_zero = down_v[0,:,0] != 0
 
-# data_set = np.load('temp_outputs/set.npz')
-#
-# train_x = data_set['train_x']
-# seg_file = np.load('temp_outputs/seg.npz')
-# segs = seg_file['mask']
-# n_seg = len(np.unique(segs)) - 1
-# train_x = train_x.T  # n_segs X n_examples
-# n_data = train_x.shape[1]
-# train_x = train_x.reshape((n_seg, -1, n_data)) # n_seg, n_frames, n_examples
-# train_x = segment.recreate_image(segs, train_x)
-# sio.savemat('temp_outputs/mat_train', {'train': train_x})
+v = down_v[:,non_zero,:]
+h = down_h[:,non_zero,:]
 
 
-# set_file = np.load('temp_outputs/seg.npz')
-# seg_v = set_file['seg_v']
-# seg_h = set_file['seg_h']
-# h = seg_h[:,:,:-1]
-# train_x = np.concatenate((seg_v, h), 2)
-# train_x = np.reshape(train_x, (-1, 14)).T
-#
-# train_y = np.concatenate((np.ones(7), np.zeros(7)))
-# data_sets = create_data_set.np_to_tensor([train_x, train_y, train_x, train_y, train_x, train_y])
-# train_losses, test_losses = model.train(data_sets)
-# plt.figure()
-# plt.plot(train_losses, label="train loss")
-# # plt.plot(test_losses, label="test loss")
-# plt.legend()
-# plt.show()
+train_y = np.concatenate((np.ones(min_num), np.zeros(min_num)))
+test_y = np.asarray([1,1, 0,0])
+frame_accuracies = np.zeros([len(frames),1])
+for iv in range(n_v - 1):
+    for ih in range(n_h - 1):
+        print('{}, {}'.format(iv, ih))
+        v_indexes = np.random.choice(np.delete(np.arange(n_v), [iv, iv+1]), min_num)
+        h_indexes = np.random.choice(np.delete(np.arange(n_h), [ih, ih+1]), min_num)
+        current_v = v[v_indexes,:,:]
+        current_h = h[h_indexes, :, :]
+        current_all = np.concatenate([current_v, current_h], axis=0)
+        m = np.mean(current_all, axis=0)
+        s = np.std(current_all, axis=0)
+        current_all = np.divide(np.subtract(current_all, m), s)
+        train_x = []
+        for f in range(n_frames):
+            for i in range(len(current_all)):
+                train_x.append(current_all[i,:,f])
+        train_x = np.asarray(train_x)
+        train_y = np.concatenate([np.ones(n_frames*min_num), np.zeros(n_frames*min_num)], axis=0)
 
-# set_file = np.load('temp_outputs/set.npz')
-# train_x = set_file['train_x']
-# seg_v = train_x[0,:]
-# seg_h = train_x[2000,:]
-# seg_file = np.load('temp_outputs/seg.npz')
-# mask = seg_file['mask']
-# n_seg = len(np.unique(mask))
-# if np.unique(mask)[0] == 0:
-#     n_seg = n_seg - 1
-# seg_v = seg_v.reshape((n_seg, -1))
-# seg_h = seg_h.reshape((n_seg, -1))
-# orig_v = segment.recreate_image(mask, seg_v)
-# orig_h = segment.recreate_image(mask, seg_h)
-# sio.savemat('temp_outputs/mat_examples', {'v': orig_v, 'h': orig_h})
+        clf = svm.SVC(gamma='auto')
+        clf.fit(train_x, train_y)
+
+        test_v = np.divide(np.subtract(v[iv:iv+1,:,:], m), s)
+        test_h = np.divide(np.subtract(h[ih:ih+1,:,:], m), s)
+        for f in range(len(frames)):
+            test_x = np.concatenate([test_v[:,f], test_h[:,f]], axis=0)
+            pred = clf.predict(test_x)
+            acc = np.mean(pred == test_y)
+            frame_accuracies[f] += acc
+frame_accuracies = frame_accuracies / (n_v * n_h)
+np.save('frame_accuracies', frame_accuracies)
+plt.figure()
+plt.title('Cross validation Accuracy for Frames')
+plt.plot([i+1 for i in frames],frame_accuracies)
+plt.show()
+# loop over train and test and run svm
+
+# plot accuracy

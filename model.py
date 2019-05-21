@@ -44,8 +44,9 @@ def train(model, datasets, parameters):
         predictions = torch.round(outputs).int().view(outputs.numel())
         accuracy = (predictions == valid_y_int).sum().item() / len(valid_y_int)
         valid_accuracies.append(accuracy)
-
-        if e > 15 and np.mean(valid_losses[-5:]) > np.mean(valid_losses[-10:-5]):
+        if valid_losses[-1] < 0.01:
+            return model, train_losses, valid_losses, valid_accuracies
+        if e > 18 and np.mean(valid_losses[-5:]) > np.mean(valid_losses[-10:-5]):
             print('finished at epoch {}'.format(e))
             return model, train_losses, valid_losses, valid_accuracies
         if e % 2 == 0:
@@ -55,9 +56,9 @@ def train(model, datasets, parameters):
     return model, train_losses, valid_losses, valid_accuracies
 
 
-def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=70, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
-    optimizer = optimizer_type(model.parameters(), lr=lr)
-    scheduler = scheduler_type(optimizer, [5, 30])
+def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=81, lr=0.0001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
+    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.01)
+    scheduler = scheduler_type(optimizer, [30], gamma=0.5)
     return [loss_fn, n_epochs, optimizer, scheduler]
 
 
@@ -83,6 +84,7 @@ def get_all_missing_indexes(n_ponits, n_seg, n_frames, part_type):
 
 
 def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_type='segments', zero_all=True, value_type='loss'):
+    model.eval()
     seg_numbers = np.unique(segments_map)
     if seg_numbers[0] == 0:
         seg_numbers = seg_numbers[1:]

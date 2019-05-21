@@ -58,6 +58,62 @@ import dense_net
 import segment
 import visualize_res
 from read_settings import Settings
+from sklearn import svm
+
+
+def temp_svm(data_sets, mask):
+    train_sets_x, train_y, validation_sets_x, valid_y, test_sets_x, test_y = data_sets
+    n_data_sets = len(train_sets_x)
+    mask_nubmers = np.unique(mask)
+    n_seg = len(mask_nubmers) - 1 if mask_nubmers[0] == 0 else len(mask_nubmers)
+    n_frames = int(train_sets_x.shape[2] / n_seg)
+    valid_accuracies = []
+    frames_loss_maps = np.zeros([n_data_sets, n_frames])
+    seg_loss_maps = np.zeros([n_data_sets, n_seg])
+    all_indexes = np.asarray(list(range(n_seg*n_frames))).reshape([n_seg, n_frames])
+    for idx, one_train, one_test in zip(range(n_data_sets), train_sets_x, test_sets_x):
+        m = np.mean(one_train, axis=0)
+        s = np.std(one_train, axis=0)
+        one_train = (one_train - m) / s
+        one_test = (one_test - m) / s
+        clf = svm.SVC()
+        clf.fit(one_train, train_y)
+        prediction = clf.predict(one_test)
+        real_validation_acc = np.mean(prediction == test_y)
+        valid_accuracies.append(real_validation_acc)
+        for f in range(n_frames):
+            new_test = np.zeros_like(one_test)
+            indices = all_indexes[:,f].ravel()
+            new_test[:,indices] = one_test[:,indices]
+            prediction = clf.predict(new_test)
+            frames_loss_maps[idx,f] += np.mean(prediction == test_y)
+        for s in range(n_seg):
+            new_test = np.zeros_like(one_test)
+            indices = all_indexes[s,:].ravel()
+            new_test[:,indices] = one_test[:,indices]
+            prediction = clf.predict(new_test)
+            seg_loss_maps[idx,s] += np.mean(prediction == test_y)
+    frame_loss = np.mean(frames_loss_maps, axis=0)
+    seg_loss = np.mean(seg_loss_maps, axis=0)
+    image = segment.recreate_image(mask, seg_loss)
+    visualize_res.plot_temporal(frame_loss, list(range(27, 68)), title='accuracy for present frame', ylabel='accuracy')
+    visualize_res.plot_spatial(image, title='accuracy for present segment')
+
+    print('h')
+    #     all_train_losses.append(train_losses)
+    #     all_valid_losses.append(valid_losses)
+    #     frames_loss_maps[idx, :] = np.asarray(
+    #         model.run_with_missing_parts(net, mask, one_test, False, len(settings.frames), part_type='frames',
+    #                                      zero_all=zero_all, value_type=value_type))
+    #     seg_loss_maps[idx, :] = model.run_with_missing_parts(
+    #         net, mask, one_test, False, len(settings.frames),
+    #         part_type='segments', zero_all=zero_all, value_type=value_type)
+    #
+    # frame_loss = np.mean(frames_loss_maps, axis=0)
+    # seg_loss = segment.recreate_image(mask, np.mean(seg_loss_maps, axis=0))
+    # data_io.save_to(frame_loss, settings.files['vis_frame'], 'vis')
+    # data_io.save_to(seg_loss, settings.files['vis_seg'], 'vis')
+    # visualize_res.plot_losses(all_train_losses, all_valid_losses, [], n_data_sets)
 
 
 def main(path):
@@ -66,7 +122,7 @@ def main(path):
     if 'mask' in settings.stages:
         # need v,h raw and frames
         v, h = data_io.read_from_file(settings.files['raw'], 'raw')
-        mask = segment.vert_horiz_seg(v[:, settings.frames, :], h[:, settings.frames, :], square=True)
+        mask = segment.vert_horiz_seg(v[:, settings.frames, :], h[:, settings.frames, :], square=False)
         data_io.save_to(mask, settings.files['mask'], 'mask')
 
     if 'seg' in settings.stages:
@@ -81,8 +137,8 @@ def main(path):
         cv = 'cv' in settings.flags
         sizes = settings.sizes
         data_sets = create_data_set.get_data(
-            seg_v, seg_h, n_train=sizes['train'], n_valid=sizes['valid'], n_test=sizes['test'], cv=cv, flat_x=True,
-            to_tensor=False, random=False)
+            seg_v, seg_h, n_train=sizes['train'], n_valid=sizes['valid'], n_test=sizes['test'], cv=cv, flat_x=False,
+            to_tensor=False, random=True)
         data_io.save_to(data_sets, settings.files['set'], 'set')
 
     if 'net' in settings.stages:
@@ -91,7 +147,7 @@ def main(path):
         value_type = 'acc' if 'acc' in settings.flags else 'loss'
         data_sets = data_io.read_from_file(settings.files['set'], 'set')
         mask = data_io.read_from_file(settings.files['mask'], 'mask')
-
+        temp_svm(data_sets, mask)
         # TODO: remove this
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset_old(data_sets, cv=cv)
 
@@ -113,15 +169,17 @@ def main(path):
             seg_loss_maps = np.zeros([n_data_sets, n_seg])
             all_train_losses = []
             all_valid_losses = []
+            all_acc = []
             for idx, one_train, one_test in zip(range(n_data_sets), train, test):
-                mean_t, std_t = one_train.calc_mean_std()
-                one_train = one_train.normalize(mean_t, std_t)
-                one_test = one_test.normalize(mean_t, std_t)
+                # mean_t, std_t = one_train.calc_mean_std()
+                # one_train = one_train.normalize(mean_t, std_t)
+                # one_test = one_test.normalize(mean_t, std_t)
 
                 net = dense_net.get_model(D_in)
                 training_parameters = model.get_train_params(net)
 
                 net, train_losses, valid_losses, valid_accuracies = model.train(net, [one_train, one_test], training_parameters)
+                all_acc.append(valid_accuracies)
                 if valid_losses[-1] > 0.6:
                     print('\n{}\n'.format(idx))
                 all_train_losses.append(train_losses)
@@ -141,6 +199,16 @@ def main(path):
 
         # n_data_sets = len(data_sets[0]) if cv else 1
         # data_io.save_to([train_losses, validation_losses, test_losses, test_accuracies, n_data_sets], settings.files['los'], 'los')
+
+    if 'test_net' in settings.stages:
+        # TODO: write this
+        cv = 'cv' in settings.flags
+        zero_all = 'zero_all' in settings.flags
+        value_type = 'acc' if 'acc' in settings.flags else 'loss'
+        data_sets = data_io.read_from_file(settings.files['set'], 'set')
+        mask = data_io.read_from_file(settings.files['mask'], 'mask')
+        net = data_io.read_from_file(settings.files['net'], 'net')
+
 
     if 'los' in settings.stages:
         # TODO: update

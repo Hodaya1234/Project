@@ -2,6 +2,7 @@ import numpy as np
 import augment
 import torch
 from data_set import DataSet
+import matplotlib.pyplot as plt
 
 
 def turn_to_torch_dataset(x,y):
@@ -50,7 +51,7 @@ def get_train_test_indices(n_total, n_train, n_test, number_of_sets=1, random=Fa
         all_test_indices = []
         if random:
             for i in range(number_of_sets):
-                train_indices, test_indices = get_train_test_indices(n_total, n_train, n_test, number_of_sets=1, random=True)
+                train_indices, test_indices = get_train_test_indices(n_total, n_train, n_test, number_of_sets=1, random=random)
                 all_train_indices.append(train_indices)
                 all_test_indices.append(test_indices)
         else:
@@ -106,16 +107,17 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
             test_h_i = seg_h[test_indices_h[i], :]
             test_x = np.concatenate((test_v_i, test_h_i), 0)
 
-            train_v_i = seg_v[train_indices_v[i],:]
-            train_h_i = seg_h[train_indices_h[i],:]
-
+            train_v_i = seg_v[train_indices_v[i], :]
+            train_h_i = seg_h[train_indices_h[i], :]
             train_i = np.concatenate([train_v_i, train_h_i], axis=0)
+
             mean_i = np.mean(train_i, axis=0)
             std_i = np.std(train_i, axis=0)
-            mean_i = mean_i[np.newaxis,:]
-            std_i = std_i[np.newaxis,:]
+            mean_i = mean_i[np.newaxis, :]
+            std_i = std_i[np.newaxis, :]
             train_v_i = np.divide(np.subtract(train_v_i, mean_i), std_i)
             train_h_i = np.divide(np.subtract(train_h_i, mean_i), std_i)
+
             test_x = np.divide(np.subtract(test_x, mean_i), std_i)
 
             train_set_v, valid_set_v = create_one_data_sets(train_v_i, n_train, n_valid)
