@@ -135,3 +135,67 @@ def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_typ
                 loss_map[iter] += curr_acc
 
     return loss_map
+
+
+def train_validation_and_test(model, datasets, parameters):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.double().to(device)
+
+    train_dataset, valid_dataset, test_dataset = datasets
+    loss_fn, n_epochs, optimizer, scheduler = parameters
+
+    train_losses = []
+    valid_losses = []
+    valid_accuracies = []
+    test_losses = []
+    test_accuracies = []
+    train_loader = data_utils.DataLoader(train_dataset, batch_size=16, shuffle=True)
+    valid_y_int = valid_dataset.all_y.int()
+    test_y_int = test_dataset.all_y.int()
+
+    for e in range(n_epochs):
+        scheduler.step()
+        epoch_train_loss = []
+        model.train()
+        for x, y in train_loader:
+            optimizer.zero_grad()
+            y_pred = model(x)
+            y_pred = y_pred.view(y_pred.numel())
+            loss = loss_fn(y_pred, y)
+            loss.backward()
+            optimizer.step()
+            epoch_train_loss.append(loss.item())
+        train_loss_mean = sum(epoch_train_loss) / len(epoch_train_loss)
+        train_losses.append(train_loss_mean)
+
+        model.eval()
+
+        outputs = model(valid_dataset.all_x)
+        outputs = outputs.view(outputs.numel())
+        loss = loss_fn(outputs, valid_dataset.all_y).item()
+        valid_losses.append(loss)
+
+        predictions = torch.round(outputs).int().view(outputs.numel())
+        accuracy = (predictions == valid_y_int).sum().item() / len(valid_y_int)
+        valid_accuracies.append(accuracy)
+
+        #
+        outputs = model(test_dataset.all_x)
+        outputs = outputs.view(outputs.numel())
+        loss = loss_fn(outputs, test_dataset.all_y).item()
+        test_losses.append(loss)
+
+        predictions = torch.round(outputs).int().view(outputs.numel())
+        accuracy = (predictions == test_y_int).sum().item() / len(test_y_int)
+        test_accuracies.append(accuracy)
+
+        if valid_losses[-1] < 0.01:
+            return model, train_losses, valid_losses, valid_accuracies
+        if e > 18 and np.mean(valid_losses[-5:]) > np.mean(valid_losses[-10:-5]):
+            print('finished at epoch {}'.format(e))
+            return model, train_losses, valid_losses, valid_accuracies
+        if e % 2 == 0:
+            print("{}. train loss: {}   valid_loss: {}  valid-acc:{}".format(
+                e, train_losses[-1], valid_losses[-1], valid_accuracies[-1]))
+
+    return model, train_losses, valid_losses, valid_accuracies

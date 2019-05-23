@@ -8,6 +8,7 @@ import create_data_set
 import scipy.io as sio
 import segment
 from sklearn import svm
+import visualize_res
 
 # read the original data
 data = sio.loadmat('Data/02.12/b/clean.mat')
@@ -68,3 +69,43 @@ plt.show()
 # loop over train and test and run svm
 
 # plot accuracy
+
+
+
+def temp_svm(data_sets, mask):
+    train_sets_x, train_y, validation_sets_x, valid_y, test_sets_x, test_y = data_sets
+    n_data_sets = len(train_sets_x)
+    mask_nubmers = np.unique(mask)
+    n_seg = len(mask_nubmers) - 1 if mask_nubmers[0] == 0 else len(mask_nubmers)
+    n_frames = int(train_sets_x.shape[2] / n_seg)
+    valid_accuracies = []
+    frames_loss_maps = np.zeros([n_data_sets, n_frames])
+    seg_loss_maps = np.zeros([n_data_sets, n_seg])
+    all_indexes = np.asarray(list(range(n_seg*n_frames))).reshape([n_seg, n_frames])
+    for idx, one_train, one_test in zip(range(n_data_sets), train_sets_x, test_sets_x):
+        m = np.mean(one_train, axis=0)
+        s = np.std(one_train, axis=0)
+        one_train = (one_train - m) / s
+        one_test = (one_test - m) / s
+        clf = svm.SVC()
+        clf.fit(one_train, train_y)
+        prediction = clf.predict(one_test)
+        real_validation_acc = np.mean(prediction == test_y)
+        valid_accuracies.append(real_validation_acc)
+        for f in range(n_frames):
+            new_test = np.zeros_like(one_test)
+            indices = all_indexes[:,f].ravel()
+            new_test[:,indices] = one_test[:,indices]
+            prediction = clf.predict(new_test)
+            frames_loss_maps[idx,f] += np.mean(prediction == test_y)
+        for s in range(n_seg):
+            new_test = np.zeros_like(one_test)
+            indices = all_indexes[s,:].ravel()
+            new_test[:,indices] = one_test[:,indices]
+            prediction = clf.predict(new_test)
+            seg_loss_maps[idx,s] += np.mean(prediction == test_y)
+    frame_loss = np.mean(frames_loss_maps, axis=0)
+    seg_loss = np.mean(seg_loss_maps, axis=0)
+    image = segment.recreate_image(mask, seg_loss)
+    visualize_res.plot_temporal(frame_loss, list(range(27, 68)), title='accuracy for present frame', ylabel='accuracy')
+    visualize_res.plot_spatial(image, title='accuracy for present segment')

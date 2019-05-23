@@ -61,59 +61,8 @@ from read_settings import Settings
 from sklearn import svm
 
 
-def temp_svm(data_sets, mask):
-    train_sets_x, train_y, validation_sets_x, valid_y, test_sets_x, test_y = data_sets
-    n_data_sets = len(train_sets_x)
-    mask_nubmers = np.unique(mask)
-    n_seg = len(mask_nubmers) - 1 if mask_nubmers[0] == 0 else len(mask_nubmers)
-    n_frames = int(train_sets_x.shape[2] / n_seg)
-    valid_accuracies = []
-    frames_loss_maps = np.zeros([n_data_sets, n_frames])
-    seg_loss_maps = np.zeros([n_data_sets, n_seg])
-    all_indexes = np.asarray(list(range(n_seg*n_frames))).reshape([n_seg, n_frames])
-    for idx, one_train, one_test in zip(range(n_data_sets), train_sets_x, test_sets_x):
-        m = np.mean(one_train, axis=0)
-        s = np.std(one_train, axis=0)
-        one_train = (one_train - m) / s
-        one_test = (one_test - m) / s
-        clf = svm.SVC()
-        clf.fit(one_train, train_y)
-        prediction = clf.predict(one_test)
-        real_validation_acc = np.mean(prediction == test_y)
-        valid_accuracies.append(real_validation_acc)
-        for f in range(n_frames):
-            new_test = np.zeros_like(one_test)
-            indices = all_indexes[:,f].ravel()
-            new_test[:,indices] = one_test[:,indices]
-            prediction = clf.predict(new_test)
-            frames_loss_maps[idx,f] += np.mean(prediction == test_y)
-        for s in range(n_seg):
-            new_test = np.zeros_like(one_test)
-            indices = all_indexes[s,:].ravel()
-            new_test[:,indices] = one_test[:,indices]
-            prediction = clf.predict(new_test)
-            seg_loss_maps[idx,s] += np.mean(prediction == test_y)
-    frame_loss = np.mean(frames_loss_maps, axis=0)
-    seg_loss = np.mean(seg_loss_maps, axis=0)
-    image = segment.recreate_image(mask, seg_loss)
-    visualize_res.plot_temporal(frame_loss, list(range(27, 68)), title='accuracy for present frame', ylabel='accuracy')
-    visualize_res.plot_spatial(image, title='accuracy for present segment')
 
-    print('h')
-    #     all_train_losses.append(train_losses)
-    #     all_valid_losses.append(valid_losses)
-    #     frames_loss_maps[idx, :] = np.asarray(
-    #         model.run_with_missing_parts(net, mask, one_test, False, len(settings.frames), part_type='frames',
-    #                                      zero_all=zero_all, value_type=value_type))
-    #     seg_loss_maps[idx, :] = model.run_with_missing_parts(
-    #         net, mask, one_test, False, len(settings.frames),
-    #         part_type='segments', zero_all=zero_all, value_type=value_type)
-    #
-    # frame_loss = np.mean(frames_loss_maps, axis=0)
-    # seg_loss = segment.recreate_image(mask, np.mean(seg_loss_maps, axis=0))
-    # data_io.save_to(frame_loss, settings.files['vis_frame'], 'vis')
-    # data_io.save_to(seg_loss, settings.files['vis_seg'], 'vis')
-    # visualize_res.plot_losses(all_train_losses, all_valid_losses, [], n_data_sets)
+
 
 
 def main(path):
