@@ -50,7 +50,7 @@ flags: the type of data to start with. options: raw, seg, set and res.
 import argparse
 
 import numpy as np
-import model
+import train_model
 import create_data_set
 import data_io
 import data_set
@@ -104,8 +104,8 @@ def main(path):
             net = dense_net.get_model(D_in)
             mean_t, std_t = train.calc_mean_std()
             train, valid, test = train.normalize(mean_t, std_t), valid.normalize(mean_t, std_t), test.normalize(mean_t, std_t)
-            training_parameters = model.get_train_params(net)
-            net, train_losses, valid_losses, valid_accuracies = model.train(net, [train, test], training_parameters)
+            training_parameters = train_model.get_train_params(net)
+            net, train_losses, valid_losses, valid_accuracies = train_model.train(net, [train, test], training_parameters)
             data_io.save_to(net, settings.files['net'], 'net')
 
         else:
@@ -125,18 +125,18 @@ def main(path):
                 # one_test = one_test.normalize(mean_t, std_t)
 
                 net = dense_net.get_model(D_in)
-                training_parameters = model.get_train_params(net)
+                training_parameters = train_model.get_train_params(net)
 
-                net, train_losses, valid_losses, valid_accuracies = model.train(net, [one_train, one_test], training_parameters)
+                net, train_losses, valid_losses, valid_accuracies = train_model.train(net, [one_train, one_test], training_parameters)
                 all_acc.append(valid_accuracies)
                 if valid_losses[-1] > 0.6:
                     print('\n{}\n'.format(idx))
                 all_train_losses.append(train_losses)
                 all_valid_losses.append(valid_losses)
                 frames_loss_maps[idx, :] = np.asarray(
-                    model.run_with_missing_parts(net, mask, one_test, False, len(settings.frames), part_type='frames',
-                                                 zero_all=zero_all, value_type=value_type))
-                seg_loss_maps[idx, :] = model.run_with_missing_parts(
+                    train_model.run_with_missing_parts(net, mask, one_test, False, len(settings.frames), part_type='frames',
+                                                       zero_all=zero_all, value_type=value_type))
+                seg_loss_maps[idx, :] = train_model.run_with_missing_parts(
                     net, mask, one_test, False, len(settings.frames),
                     part_type='segments', zero_all=zero_all, value_type=value_type)
 
@@ -176,16 +176,16 @@ def main(path):
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset_old(data_sets, cv=cv)
         train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
 
-        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='both', zero_all=zero_all, value_type=value_type)
+        loss_map = train_model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='both', zero_all=zero_all, value_type=value_type)
         loss_map = loss_map.reshape([-1, len(settings.frames)])
         loss_maps = [np.mean(loss_map[:, frames], axis=1) for frames in settings.frame_groups]
         images = np.asarray([segment.recreate_image(mask, one_loss_map) for one_loss_map in loss_maps])
         data_io.save_to(images, settings.files['vis_both'], 'vis')
 
-        loss_map = np.asarray(model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames', zero_all=zero_all, value_type=value_type))
+        loss_map = np.asarray(train_model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames', zero_all=zero_all, value_type=value_type))
         data_io.save_to(loss_map, settings.files['vis_frame'], 'vis')
 
-        loss_map = model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments', zero_all=zero_all, value_type=value_type)
+        loss_map = train_model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments', zero_all=zero_all, value_type=value_type)
         image = segment.recreate_image(mask, loss_map)
         data_io.save_to(image, settings.files['vis_seg'], 'vis')
 

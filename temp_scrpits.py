@@ -2,7 +2,7 @@
 import numpy as np
 import segment
 import scipy.io as sio
-import model
+import train_model
 import matplotlib.pyplot as plt
 import create_data_set
 import scipy.io as sio

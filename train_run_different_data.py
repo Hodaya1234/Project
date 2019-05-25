@@ -3,7 +3,7 @@ from sklearn import svm
 import numpy as np
 import matplotlib.pyplot as plt
 from dense_net import DenseNet
-import model
+import train_model
 from data_set import DataSet
 
 def normalize(data, m=None, s=None):
@@ -72,7 +72,7 @@ def nn_train_test(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
         one_train_x = normalize(one_train_x)
         one_orig_test_x = normalize(one_orig_test_x)
         net = DenseNet(D_in, H1, H2, D_out)
-        param = model.get_train_params(net)
+        param = train_model.get_train_params(net)
 
 
 
