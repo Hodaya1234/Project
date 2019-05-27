@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 from dense_net import DenseNet
 import train_model
 from data_set import DataSet
+import torch.utils.data as data_utils
+import torch
+from torch import nn, optim
+
 
 def normalize(data, m=None, s=None):
     if m is None:
@@ -14,7 +18,7 @@ def normalize(data, m=None, s=None):
     return np.divide(np.subtract(data, m), s)
 
 
-def svm_train_test(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
+def svm_train_test_sep_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
     n_frames = len(frames)
     n_sets = len(train_x)
     orig_acc = np.zeros([n_sets, n_frames])
@@ -56,26 +60,123 @@ def svm_train_test(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
     plt.show()
 
 
-def nn_train_test(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
-    new_x = normalize(new_x)
-    new_data = DataSet(new_x, new_y)
+def svm_train_test_all_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
+    train_x = train_x.reshape([train_x.shape[0], train_x.shape[1], -1])
+    orig_x = orig_x.reshape([orig_x.shape[0], orig_x.shape[1], -1])
+    new_x = new_x.reshape([new_x.shape[0], -1])
 
     n_frames = len(frames)
     n_sets = len(train_x)
-    orig_acc = np.zeros([n_sets, n_frames])
-    new_acc = np.zeros([n_sets, n_frames])
-    D_in = train_x[2] * train_x[3]
-    H1 = 100
-    H2 = 50
-    D_out = 1
+
+    orig_acc = np.zeros([n_sets,])
+    new_acc = np.zeros([n_sets,])
+    new_x = normalize(new_x)
     for idx, one_train_x, one_orig_test_x in zip(range(n_sets), train_x, orig_x):
         one_train_x = normalize(one_train_x)
         one_orig_test_x = normalize(one_orig_test_x)
+
+        clf = svm.SVC(gamma='auto')
+        clf.fit(np.asarray(one_train_x), train_y)
+
+        # TODO: remove frames and see effect
+        orig_pred = clf.predict(one_orig_test_x)
+        acc = np.mean(orig_pred == orig_y)
+        orig_acc[idx] = acc
+
+        new_pred = clf.predict(new_x)
+        acc = np.mean(new_pred == new_y)
+        new_acc[idx] = acc
+        print(idx)
+    plt.figure()
+    plt.scatter(list(range(n_sets)),orig_acc, label='b test accuracy')
+    plt.scatter(list(range(n_sets)), new_acc, label='c test accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('different cross validation sets')
+    plt.title('SVM accuracy trained on b tested on c, frames flattened')
+    plt.show()
+
+
+def nn_train_test(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
+    train_x = train_x.reshape([train_x.shape[0], train_x.shape[1], -1])
+    orig_x = orig_x.reshape([orig_x.shape[0], orig_x.shape[1], -1])
+    new_x = new_x.reshape([new_x.shape[0], -1])
+    # n_frames = len(frames)
+    n_sets = len(train_x)
+    # orig_acc = np.zeros([n_sets, n_frames])
+    # new_acc = np.zeros([n_sets, n_frames])
+
+    D_in = train_x.shape[2]
+    H1 = 100
+    H2 = 50
+    D_out = 1
+    new_dataset = DataSet(new_x, new_y).normalize()
+
+    n_epochs = 60
+
+    loss_fn = nn.BCELoss()
+    optimizer_type = optim.Adam
+    scheduler_type = optim.lr_scheduler.MultiStepLR
+    lr = 0.001
+
+    train_losses = torch.zeros([n_sets, n_epochs])
+    orig_losses = torch.zeros([n_sets, n_epochs])
+    orig_accuracies = torch.zeros([n_sets, n_epochs])
+    new_losses = torch.zeros([n_sets, n_epochs])
+    new_accuracies = torch.zeros([n_sets, n_epochs])
+
+    for idx, one_train_x, one_orig_x in zip(range(n_sets), train_x, orig_x):
+        print(idx)
+        train_dataset = DataSet(one_train_x, train_y).normalize()
+        orig_dataset = DataSet(one_orig_x, orig_y).normalize()
+
         net = DenseNet(D_in, H1, H2, D_out)
-        param = train_model.get_train_params(net)
+        net = net.double()
+        optimizer = optimizer_type(net.parameters(), lr=lr, weight_decay=0.1)
+        scheduler = scheduler_type(optimizer, [20], gamma=0.1)
 
+        train_loader = data_utils.DataLoader(train_dataset, batch_size=16, shuffle=True)
+        orig_y_int = orig_y.int()
+        new_y_int = new_y.int()
 
+        for e in range(n_epochs):
+            scheduler.step()
+            epoch_train_loss = []
+            net.train()
+            for x, y in train_loader:
+                optimizer.zero_grad()
+                y_pred = net(x)
+                y_pred = y_pred.view(y_pred.numel())
+                loss = loss_fn(y_pred, y)
+                loss.backward()
+                optimizer.step()
+                epoch_train_loss.append(loss.item())
+            train_losses[idx,e] = sum(epoch_train_loss) / len(epoch_train_loss)
 
+            net.eval()
+            outputs = net(orig_dataset.all_x)
+            outputs = outputs.view(outputs.numel())
+            orig_losses[idx,e] = loss_fn(outputs, orig_dataset.all_y).item()
+
+            predictions = torch.round(outputs).int()
+            orig_accuracies[idx,e] = (predictions == orig_y_int).sum().item() / len(orig_y_int)
+
+            outputs = net(new_dataset.all_x)
+            outputs = outputs.view(outputs.numel())
+            new_losses[idx,e] = loss_fn(outputs, new_dataset.all_y).item()
+
+            predictions = torch.round(outputs).int()
+            new_accuracies[idx,e] = (predictions == new_y_int).sum().item() / len(new_y_int)
+
+            # if orig_losses[-1] < 0.01:
+            #     return net, train_losses, orig_losses, orig_accuracies
+            # if e > 18 and np.mean(orig_losses[-5:]) > np.mean(orig_losses[-10:-5]):
+            #     print('finished at epoch {}'.format(e))
+            #     return net, train_losses, orig_losses, orig_accuracies
+            if e % 5 == 0:
+                print("{}. train loss: {}   orig loss: {}  new loss: {}".format(
+                    e, train_losses[idx,e], orig_losses[idx,e], new_losses[idx,e]))
+    np.savez('diff_sess_loss', train_losses=train_losses, orig_losses=orig_losses, orig_accuracies=orig_accuracies,
+             new_losses=new_losses, new_accuracies=new_accuracies)
 
 
 def main():
@@ -105,7 +206,9 @@ def main():
     new_test_x = np.concatenate([v_test_data, h_test_data], axis=0)
     new_test_y = np.concatenate([np.ones(n_v), np.zeros(n_h)])
 
-    nn_train_test(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
+    svm_train_test_all_frame(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
+
+    # nn_train_test(torch.from_numpy(train_x), torch.from_numpy(train_y), torch.from_numpy(original_test_x), torch.from_numpy(original_test_y), torch.from_numpy(new_test_x), torch.from_numpy(new_test_y), frames)
 
 
 main()
