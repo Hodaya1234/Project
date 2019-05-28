@@ -8,6 +8,7 @@ from data_set import DataSet
 import torch.utils.data as data_utils
 import torch
 from torch import nn, optim
+import segment
 
 
 def normalize(data, m=None, s=None):
@@ -18,7 +19,53 @@ def normalize(data, m=None, s=None):
     return np.divide(np.subtract(data, m), s)
 
 
-def svm_train_test_sep_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
+def svm_train_test_segs(train_x, train_y, orig_x, orig_y, new_x, new_y, mask):
+    n_seg = len(np.unique(mask)) - 1
+    n_sets = len(train_x)
+    orig_acc = np.zeros([n_sets, n_seg])
+    new_acc = np.zeros([n_sets, n_seg])
+    # train_y = np.concatenate([np.ones(63*41), np.zeros(63*41)])
+    new_x = normalize(new_x)
+    for idx, one_train_x, one_orig_test_x in zip(range(n_sets), train_x, orig_x):
+        one_train_x = normalize(one_train_x)
+        one_orig_test_x = normalize(one_orig_test_x)
+        for s in range(n_seg):
+            train_frame = one_train_x[:,s,:]
+            test_frame_orig = one_orig_test_x[:,s,:]
+            test_frame_new = new_x[:,s,:]
+
+            clf = svm.SVC(gamma='auto')
+            clf.fit(np.asarray(train_frame), train_y)
+
+            orig_pred = clf.predict(test_frame_orig)
+            acc = np.mean(orig_pred == orig_y)
+            orig_acc[idx,s] = acc
+
+            new_pred = clf.predict(test_frame_new)
+            acc = np.mean(new_pred == new_y)
+            new_acc[idx,s] = acc
+        print(idx)
+
+    np.save('orig', orig_acc)
+    np.save('new', new_acc)
+    orig_acc = np.mean(orig_acc, axis=0)
+    new_acc = np.mean(new_acc, axis=0)
+    image_o = segment.recreate_image(mask, orig_acc)
+    image_n = segment.recreate_image(mask, new_acc)
+    max_val = np.max(np.max(orig_acc), np.max(new_acc))
+
+    fig, axes = plt.subplots(nrows=1, ncols=2)
+    im_o = axes.flat[0].imshow(image_o.reshape([100, 100]), vmin=0.5, vmax=max_val)
+    axes[0].set_title('Accuracy on session b')
+    im_n = axes.flat[1].imshow(image_n.reshape([100, 100]), vmin=0.5, vmax=max_val)
+    axes[1].set_title('Accuracy on session c')
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    fig.colorbar(im_n, cax=cbar_ax)
+    plt.show()
+
+
+def svm_train_test_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
     n_frames = len(frames)
     n_sets = len(train_x)
     orig_acc = np.zeros([n_sets, n_frames])
@@ -60,7 +107,7 @@ def svm_train_test_sep_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, fra
     plt.show()
 
 
-def svm_train_test_all_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
+def svm_train_test_flat(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
     train_x = train_x.reshape([train_x.shape[0], train_x.shape[1], -1])
     orig_x = orig_x.reshape([orig_x.shape[0], orig_x.shape[1], -1])
     new_x = new_x.reshape([new_x.shape[0], -1])
@@ -75,7 +122,7 @@ def svm_train_test_all_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, fra
         one_train_x = normalize(one_train_x)
         one_orig_test_x = normalize(one_orig_test_x)
 
-        clf = svm.SVC(gamma='auto')
+        clf = svm.SVC(C=2, gamma='scale')
         clf.fit(np.asarray(one_train_x), train_y)
 
         # TODO: remove frames and see effect
@@ -88,11 +135,12 @@ def svm_train_test_all_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, fra
         new_acc[idx] = acc
         print(idx)
     plt.figure()
-    plt.scatter(list(range(n_sets)),orig_acc, label='b test accuracy')
-    plt.scatter(list(range(n_sets)), new_acc, label='c test accuracy')
+    plt.scatter(list(range(n_sets)), orig_acc, label='b test accuracy (mean={0: .4f})'.format(np.mean(orig_acc)))
+    plt.scatter(list(range(n_sets)), new_acc, label='c test accuracy (mean={0: .4f})'.format(np.mean(new_acc)))
     plt.ylabel('accuracy')
     plt.xlabel('different cross validation sets')
     plt.title('SVM accuracy trained on b tested on c, frames flattened')
+    plt.legend()
     plt.show()
 
 
@@ -107,7 +155,7 @@ def nn_train_test(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
 
     D_in = train_x.shape[2]
     H1 = 100
-    H2 = 50
+    H2 = 10
     D_out = 1
     new_dataset = DataSet(new_x, new_y).normalize()
 
@@ -153,19 +201,20 @@ def nn_train_test(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
             train_losses[idx,e] = sum(epoch_train_loss) / len(epoch_train_loss)
 
             net.eval()
-            outputs = net(orig_dataset.all_x)
-            outputs = outputs.view(outputs.numel())
-            orig_losses[idx,e] = loss_fn(outputs, orig_dataset.all_y).item()
+            with torch.no_grad():
+                outputs = net(orig_dataset.all_x)
+                outputs = outputs.view(outputs.numel())
+                orig_losses[idx,e] = loss_fn(outputs, orig_dataset.all_y).item()
 
-            predictions = torch.round(outputs).int()
-            orig_accuracies[idx,e] = (predictions == orig_y_int).sum().item() / len(orig_y_int)
+                predictions = torch.round(outputs).int()
+                orig_accuracies[idx,e] = (predictions == orig_y_int).sum().item() / len(orig_y_int)
 
-            outputs = net(new_dataset.all_x)
-            outputs = outputs.view(outputs.numel())
-            new_losses[idx,e] = loss_fn(outputs, new_dataset.all_y).item()
+                outputs = net(new_dataset.all_x)
+                outputs = outputs.view(outputs.numel())
+                new_losses[idx,e] = loss_fn(outputs, new_dataset.all_y).item()
 
-            predictions = torch.round(outputs).int()
-            new_accuracies[idx,e] = (predictions == new_y_int).sum().item() / len(new_y_int)
+                predictions = torch.round(outputs).int()
+                new_accuracies[idx,e] = (predictions == new_y_int).sum().item() / len(new_y_int)
 
             # if orig_losses[-1] < 0.01:
             #     return net, train_losses, orig_losses, orig_accuracies
@@ -186,6 +235,8 @@ def main():
 
     train_path = 'temp_outputs/0212-b/set2.npz'
     test_path = 'temp_outputs/0212-c/seg.npz'
+    mask = np.load('temp_outputs/0212-a/mask.npy')
+
     train_data_sets = data_io.read_from_file(train_path, 'set')
     train_x = train_data_sets[0]
     train_y = train_data_sets[1]
@@ -206,7 +257,7 @@ def main():
     new_test_x = np.concatenate([v_test_data, h_test_data], axis=0)
     new_test_y = np.concatenate([np.ones(n_v), np.zeros(n_h)])
 
-    svm_train_test_all_frame(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
+    svm_train_test_segs(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, mask)
 
     # nn_train_test(torch.from_numpy(train_x), torch.from_numpy(train_y), torch.from_numpy(original_test_x), torch.from_numpy(original_test_y), torch.from_numpy(new_test_x), torch.from_numpy(new_test_y), frames)
 
