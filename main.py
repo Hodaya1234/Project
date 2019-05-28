@@ -96,7 +96,7 @@ def main(path):
         value_type = 'acc' if 'acc' in settings.flags else 'loss'
         data_sets = data_io.read_from_file(settings.files['set'], 'set')
         mask = data_io.read_from_file(settings.files['mask'], 'mask')
-        temp_svm(data_sets, mask)
+        # temp_svm(data_sets, mask)
         # TODO: remove this
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset_old(data_sets, cv=cv)
 
