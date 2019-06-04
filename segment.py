@@ -4,7 +4,7 @@ from skimage.segmentation import felzenszwalb, join_segmentations
 import warnings
 
 
-def vert_horiz_seg(vert, horiz, square=False):
+def vert_horiz_seg(vert, horiz, square=False, max_seg=120):
     """
     The 'main' function of this module - take the two conditions and divide the pixels to smaller groups.
     :param vert: The vertical condition data of size [10,000 X n_frames] OR [100 X 100 X n_frames]
@@ -30,7 +30,7 @@ def vert_horiz_seg(vert, horiz, square=False):
     horiz_data = change_range(horiz_data)
     combination_data = np.concatenate((horiz_data, vert_data), axis=2)
     bg_mask = get_bg_mask(combination_data[:, :, 1])
-    all_segments = segment_felz(combination_data, bg_mask)
+    all_segments = segment_felz(combination_data, bg_mask, max_n_seg=max_seg)
 
     diff_numbers = np.unique(all_segments)
     for idx, num in enumerate(diff_numbers):

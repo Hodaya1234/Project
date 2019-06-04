@@ -58,11 +58,6 @@ import dense_net
 import segment
 import visualize_res
 from read_settings import Settings
-from sklearn import svm
-
-
-
-
 
 
 def main(path):
@@ -70,8 +65,12 @@ def main(path):
     # mask seg set net los vis
     if 'mask' in settings.stages:
         # need v,h raw and frames
+        square = 'square' in settings.flags
+        max_seg = settings.max_seg
+        print(square)
+        print(max_seg)
         v, h = data_io.read_from_file(settings.files['raw'], 'raw')
-        mask = segment.vert_horiz_seg(v[:, settings.frames, :], h[:, settings.frames, :], square=False)
+        mask = segment.vert_horiz_seg(v[:, settings.frames, :], h[:, settings.frames, :], square=square, max_seg=max_seg)
         data_io.save_to(mask, settings.files['mask'], 'mask')
 
     if 'seg' in settings.stages:
@@ -84,10 +83,11 @@ def main(path):
     if 'set' in settings.stages:
         [seg_v, seg_h] = data_io.read_from_file(settings.files['seg'], 'seg')
         cv = 'cv' in settings.flags
+        normalize = 'norm' in settings.flags
         sizes = settings.sizes
         data_sets = create_data_set.get_data(
             seg_v, seg_h, n_train=sizes['train'], n_valid=sizes['valid'], n_test=sizes['test'], cv=cv, flat_x=False,
-            to_tensor=False, random=True)
+            to_tensor=False, random=True, normalize=normalize)
         data_io.save_to(data_sets, settings.files['set'], 'set')
 
     if 'net' in settings.stages:
@@ -96,8 +96,7 @@ def main(path):
         value_type = 'acc' if 'acc' in settings.flags else 'loss'
         data_sets = data_io.read_from_file(settings.files['set'], 'set')
         mask = data_io.read_from_file(settings.files['mask'], 'mask')
-        # temp_svm(data_sets, mask)
-        # TODO: remove this
+
         train, valid, test, D_in = create_data_set.turn_to_torch_dataset_old(data_sets, cv=cv)
 
         if not cv:
@@ -120,10 +119,10 @@ def main(path):
             all_valid_losses = []
             all_acc = []
             for idx, one_train, one_test in zip(range(n_data_sets), train, test):
-                # mean_t, std_t = one_train.calc_mean_std()
-                # one_train = one_train.normalize(mean_t, std_t)
-                # one_test = one_test.normalize(mean_t, std_t)
-
+                mean_t, std_t = one_train.calc_mean_std()
+                one_train = one_train.normalize(mean_t, std_t)
+                one_test = one_test.normalize(mean_t, std_t)
+                print(idx)
                 net = dense_net.get_model(D_in)
                 training_parameters = train_model.get_train_params(net)
 

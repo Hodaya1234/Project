@@ -72,7 +72,7 @@ def create_one_data_sets(train, n_train, n_valid):
     return train_set, valid_set
 
 
-def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True, random=False):
+def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=True, to_tensor=True, random=False, normalize=False):
     """
     Create the data set from the relevant parameters
     :param seg_v: The segmented original vertical condition
@@ -91,6 +91,9 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
     num_h = seg_h.shape[0]
     seg_v = seg_v.reshape([num_v, -1])
     seg_h = seg_h.reshape([num_h, -1])
+    if not normalize:
+        seg_v = seg_v - 1
+        seg_h = seg_h - 1
 
     if cv:
         train_sets_x = []
@@ -109,16 +112,16 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
 
             train_v_i = seg_v[train_indices_v[i], :]
             train_h_i = seg_h[train_indices_h[i], :]
-            train_i = np.concatenate([train_v_i, train_h_i], axis=0)
 
-            mean_i = np.mean(train_i, axis=0)
-            std_i = np.std(train_i, axis=0)
-            mean_i = mean_i[np.newaxis, :]
-            std_i = std_i[np.newaxis, :]
-            train_v_i = np.divide(np.subtract(train_v_i, mean_i), std_i)
-            train_h_i = np.divide(np.subtract(train_h_i, mean_i), std_i)
-
-            test_x = np.divide(np.subtract(test_x, mean_i), std_i)
+            if normalize:
+                train_i = np.concatenate([train_v_i, train_h_i], axis=0)
+                mean_i = np.mean(train_i, axis=0)
+                std_i = np.std(train_i, axis=0)
+                mean_i = mean_i[np.newaxis, :]
+                std_i = std_i[np.newaxis, :]
+                train_v_i = np.divide(np.subtract(train_v_i, mean_i), std_i)
+                train_h_i = np.divide(np.subtract(train_h_i, mean_i), std_i)
+                test_x = np.divide(np.subtract(test_x, mean_i), std_i)
 
             train_set_v, valid_set_v = create_one_data_sets(train_v_i, n_train, n_valid)
             train_set_h, valid_set_h = create_one_data_sets(train_h_i, n_train, n_valid)
@@ -132,6 +135,10 @@ def get_data(seg_v, seg_h, n_train=3000, n_valid=50, n_test=2, cv=True, flat_x=T
                 test_x = np.reshape(test_x, (test_x.shape[0], -1))
             if to_tensor:
                 train_x, valid_x, test_x = np_to_tensor([train_x, valid_x, test_x])
+            if not normalize:
+                train_x = train_x + 1
+                valid_x = valid_x + 1
+                test_x = test_x + 1
             train_sets_x.append(train_x)
             validation_sets_x.append(valid_x)
             test_sets_x.append(test_x)

@@ -30,7 +30,8 @@ class Settings:
                     prev_num = num
                 self.frame_groups = frame_groups
                 self.frame_groups_string = ['frames {}-{}'.format(g[0] + first_frame, g[-1] + first_frame) for g in frame_groups]
-
+            elif line_key == 'max_seg':
+                self.max_seg = int(words[1].strip())
             else:
                 self.files[line_key] = words[1].strip()
 
