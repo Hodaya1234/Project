@@ -10,11 +10,13 @@ class DenseNet(nn.Module):
         self.linear3 = nn.Linear(H2, D_out)
         self.relu = nn.LeakyReLU()
         self.drop = nn.Dropout(p=p)
-        self.batchnorm = nn.BatchNorm1d(D_in)
+        self.batchnorm1 = nn.BatchNorm1d(D_in)
+        self.batchnorm2 = nn.BatchNorm1d(H1)
 
     def forward(self, x):
-        x = self.batchnorm(x)
+        x = self.batchnorm1(x)
         x = self.relu(self.drop(self.linear1(x)))
+        x = self.batchnorm2(x)
         x = self.relu(self.drop(self.linear2(x)))
         x = torch.sigmoid(self.linear3(x))
         return x
@@ -24,8 +26,8 @@ class DenseNet(nn.Module):
 
 
 def get_model(D_in):
-    H1 = 150
-    H2 = 10
+    H1 = 250
+    H2 = 50
     D_out = 1
     p = 0.5
     return DenseNet(D_in, H1, H2, D_out, p)

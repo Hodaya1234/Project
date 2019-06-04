@@ -342,23 +342,24 @@ def nn_train_test_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
 def main():
     frames = np.arange(27, 68)
     n_frames = len(frames)
-    n_seg = 104
 
-    seg_train_path = 'temp_outputs/0212-b/seg.npz'
-    train_path = 'temp_outputs/0212-b/set2.npz'
-    test_path = 'temp_outputs/0212-c/seg.npz'
-    mask = np.load('temp_outputs/0212-a/mask.npy')
+    seg_train_path = 'Data/Segmented/b_sq.npz'
+    train_path = 'Data/Sets/b_sq_no_norm.npz'
+    test_path = 'Data/Segmented/c_sq.npz'
+    mask = np.load('Data/Masks/a_sq.npy')
+    n_seg = len(np.unique(mask)) - 1
 
-    # train_data_sets = data_io.read_from_file(train_path, 'set')
-    # train_x = train_data_sets[0]
-    # train_y = train_data_sets[1]
-    # original_test_x = train_data_sets[4]
-    # original_test_y = train_data_sets[5]
-    #
-    # n_sets = len(train_x)
-    # train_x = train_x.reshape([n_sets, -1,n_seg, n_frames])
-    # original_test_x = original_test_x.reshape([n_sets, -1,n_seg, n_frames])
-    #
+    train_data_sets = data_io.read_from_file(train_path, 'set')
+    train_x = train_data_sets[0]
+    train_y = train_data_sets[1]
+    original_test_x = train_data_sets[4]
+    original_test_y = train_data_sets[5]
+
+    n_sets = len(train_x)
+    train_x = train_x.reshape([n_sets, -1,n_seg, n_frames])
+    original_test_x = original_test_x.reshape([n_sets, -1,n_seg, n_frames])
+
+
     [v_test_data, h_test_data] = data_io.read_from_file(test_path, 'seg')
     n_v = v_test_data.shape[2]
     n_h = h_test_data.shape[2]
