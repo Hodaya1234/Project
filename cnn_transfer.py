@@ -13,31 +13,18 @@ import os
 import copy
 from data_set import DataSet
 
-plt.ion()
 
-
-def load_data():
-    raw = sio.loadmat('C:\\Users\\H\\Desktop\\project\\data\\clean.mat')
+def load_data(raw_path, frames):
+    raw = sio.loadmat(raw_path)
     vert = raw['clean_vert']
     horiz = raw['clean_horiz']
-    tran_v = np.transpose(vert, [2, 0, 1])
-    tran_h = np.transpose(horiz, [2, 0, 1])
-    v_data = tran_v.reshape([-1,100,100,256])
-    h_data = tran_h.reshape([-1,100,100,256])
-    comb_data = np.concatenate([v_data, h_data], axis=0)
-    np.save('data', comb_data)
-
-
-def transform_data(raw_data=np.load('data.npy')):
-    frame_first = 27
-    frame_last = 67
-    frames = list(range(frame_first, frame_last))
-    raw_data = raw_data[:,:,:,frames].transpose([0,3,1,2])
-    pad = int((224 - 100) / 2)
-    data = np.zeros([14, (frame_last - frame_first), 3, 224, 224])
-    for i in range(3):
-        data[:, :, 0, pad:224 - pad, pad:224 - pad] = raw_data
-    np.save('tran_data', data)
+    tran_v = np.transpose(vert[:,frames,:], [2, 0, 1])
+    tran_h = np.transpose(horiz[:,frames,:], [2, 0, 1])
+    v_data = tran_v.reshape([-1,100,100,len(frames)])
+    h_data = tran_h.reshape([-1,100,100,len(frames)])
+    x = np.concatenate([v_data, h_data], axis=0)
+    y = np.concatenate([np.ones(len(v_data)), np.zeros(len(h_data))])
+    return x, y
 
 
 def normalize_data(data, zscore=False):
@@ -144,19 +131,56 @@ def fine_tune_cnn():
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=7, gamma=0.1)
 
 
-def create_data_set(x):
-    n = x.shape[0]
-    y = np.concatenate([np.ones(n / 2), np.zeros(n / 2)])
-    return DataSet(torch.from_numpy(x), torch.from_numpy(y))
+def transform(x, y, n_frames):
+    pad = int((224 - 100) / 2)
+    data = np.zeros([len(y), 3, 224, 224, n_frames])
+    for i in range(3):
+        data[:, i, pad:224 - pad, pad:224 - pad, :] = x
+    return data
 
 
-raw = np.load('norm_data.npy')
+def data_through_cnn(model, x_data, n_frames, single_frame_length):
+    new_x = np.empty([len(x_data), n_frames*single_frame_length])
+    for idx, x in enumerate(x_data):
+        all_frame_vec = np.empty([n_frames, single_frame_length])
+        for i in range(n_frames):
+            vec = model(torch.from_numpy(x[np.newaxis, :, :, :, i]))
+            all_frame_vec[i, :] = vec
+        new_x[idx, :] = all_frame_vec.flatten()
+    return new_x
+
+
+frames = np.arange(27,68)
+all_x, all_y = load_data('Data/02.12/a/clean.mat', frames)
+all_x[all_x == 0] = np.nan
+
 val_indices = [0,7]
 train_indices = [i for i in range(14) if i not in val_indices]
-val = raw[val_indices,:,:,:,:]
-train = raw[train_indices,:,:,:,:]
 
-frames_val_x = train.transpose([-1, 3, 100, 100])
-frames_train_x = train.transpose([-1, 3, 100, 100])
+train_y = all_y[train_indices]
+val_y = all_y[val_indices]
 
-train_dataset = create_data_set(frames_train_x)
+val_x = all_x[val_indices,:,:,:]
+train_x = all_x[train_indices,:,:,:]
+m = np.nanmean(train_x, axis=0)
+s = np.nanstd(train_x, axis=0)
+train_x = np.divide(np.subtract(train_x, m), s)
+val_x = np.divide(np.subtract(val_x, m), s)
+
+train_x = np.nan_to_num(train_x)
+val_x = np.nan_to_num(val_x)
+
+train_x = transform(train_x, train_y, len(frames))
+val_x = transform(val_x, val_y, len(frames))
+
+# go over all examples: for each frame get a vector output from the cnn, concatenate them. insert to NN
+single_length = 512
+model_conv = models.resnet18(pretrained=True).double()
+for param in model_conv.parameters():
+    param.requires_grad = False
+model_conv.fc = Identity()
+
+new_train_x = data_through_cnn(model_conv, train_x, len(frames), single_length)
+new_val_x = data_through_cnn(model_conv, val_x, len(frames), single_length)
+
+print('done')
