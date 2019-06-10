@@ -11,6 +11,10 @@ from sklearn import svm
 import visualize_res
 
 
+
+
+
+
 def save_segmented(mask, v, h, name):
     v_image = segment.recreate_image(mask, v)
     h_image = segment.recreate_image(mask, h)

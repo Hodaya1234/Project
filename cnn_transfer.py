@@ -16,6 +16,8 @@ from sklearn.decomposition import PCA
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn import svm
 import sys
+from sklearn import linear_model
+
 
 use_cuda = torch.cuda.is_available()
 
@@ -144,16 +146,34 @@ def transform(x, y, n_frames):
     return data
 
 
+def to_torchvision_norm(data):
+    means = [0.485, 0.456, 0.406]
+    stds = [0.229, 0.224, 0.225]
+    for i in range(3):
+        channel = data[i,:,:]
+        m = np.mean(channel)
+        s = np.std(channel)
+        channel = (channel - m) / s
+        channel *= stds[i]
+        channel += means[i]
+        data[i,:,:] = channel
+    return data
+
+
 def data_through_cnn(model, x_data, n_frames, single_frame_length):
     new_x = np.empty([len(x_data), n_frames*single_frame_length])
     for idx, x in enumerate(x_data):
         all_frame_vec = np.empty([n_frames, single_frame_length])
         for i in range(n_frames):
-            input = torch.from_numpy(x[np.newaxis, :, :, :, i])
+            after_torch_norm = to_torchvision_norm(x[:,:,:,i])
+            input = torch.from_numpy(after_torch_norm[np.newaxis, :, :, :])
             if use_cuda:
                 input = input.cuda()
             vec = model(input)
-            all_frame_vec[i, :] = vec
+            if use_cuda:
+                all_frame_vec[i, :] = vec.cpu()
+            else:
+                all_frame_vec[i, :] = vec
         new_x[idx, :] = all_frame_vec.flatten()
     return new_x
 
@@ -206,6 +226,11 @@ def create_cnn_data(raw_data_path):
     return np.asarray(train_x_sets), np.asarray(train_y_sets), np.asarray(val_x_sets), np.asarray(val_y_sets)
 
 
+# def combine_days(file_paths):
+    # open files from all days. go over all sets in a loop. for each set in the loop: normalize all the other days separately.
+    # go over all the examples in that
+
+
 def plot_pca(x, y):
     fig = plt.figure(1, figsize=(4, 3))
     plt.clf()
@@ -229,22 +254,42 @@ def main():
     np.savez(args[2], train_x=train_x, train_y=train_y, val_x=val_x, val_y=val_y)
 
 
-new_data = np.load('new_data_a.npz')
-train_x = new_data['arr_0']
-train_y = new_data['arr_1']
-val_x = new_data['arr_2']
-val_y = new_data['arr_3']
-corrects = 0
-for i in range(len(train_x)):
-    clf = svm.SVC(gamma='scale')
-    x = train_x[i,:,:]
-    y = train_y[i,:]
-    x_val = val_x[i,:,:]
-    m = np.mean(x, axis=0)
-    s = np.std(x, axis=0)
-    x = np.divide(np.subtract(x, m), s)
-    x_val = (x_val - m) / s
-    clf.fit(x, y)
-    y_hat = clf.predict(x_val)
-    corrects += (y_hat == val_y[i])
-print(corrects / len(train_x))
+def test_with_svm():
+    new_data = np.load('new_data_b.npz')
+    train_x = new_data['train_x']
+    train_y = new_data['train_y']
+    val_x = new_data['val_x']
+    val_y = new_data['val_y']
+    corrects = 0
+    for i in range(len(train_x)):
+        clf = svm.LinearSVC(class_weight='balanced')
+        x = train_x[i,:,:]
+        y = train_y[i,:]
+        x_val = val_x[i,:,:]
+        m = np.mean(x, axis=0)
+        s = np.std(x, axis=0)
+        x = np.divide(np.subtract(x, m), s)
+        x_val = (x_val - m) / s
+        clf.fit(x, y)
+        y_hat = clf.predict(x_val)
+        corrects += (y_hat == val_y[i])
+    print(corrects / len(train_x))
+
+
+def visualize_coef():
+    coef = np.load('b0212_coef.npy')
+    n_frames = int(coef.shape[1] / 512)
+    maxi = np.zeros([n_frames, ])
+    mini = np.zeros([n_frames, ])
+    mean_abs = np.zeros([n_frames, ])
+    for i in range(n_frames):
+        frame_coef = coef[0, i * 512:(i + 1) * 512]
+        # maxi[i] = np.mean(frame_coef[frame_coef > 0])
+        # mini[i] = np.mean(frame_coef[frame_coef < 0])
+        mean_abs[i] = np.mean(np.abs(frame_coef))
+    plt.plot(np.arange(27,68), mean_abs)
+    plt.title('Mean Absolute Value of SVM Coefficients per Frame Output from CNN')
+    plt.show()
+
+
+test_with_svm()
