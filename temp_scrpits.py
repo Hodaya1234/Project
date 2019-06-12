@@ -9,7 +9,8 @@ import scipy.io as sio
 import segment
 from sklearn import svm
 import visualize_res
-
+import augment
+import sys
 
 def save_segmented(mask, v, h, name):
     v_image = segment.recreate_image(mask, v)
@@ -128,3 +129,42 @@ def temp_svm(data_sets, mask):
     image = segment.recreate_image(mask, seg_loss)
     visualize_res.plot_temporal(frame_loss, list(range(27, 68)), title='accuracy for present frame', ylabel='accuracy')
     visualize_res.plot_spatial(image, title='accuracy for present segment')
+
+
+def leave_one_out_sets(seg_v, seg_h, n_train=50, normalize=False):
+    seg_v, seg_h = np.transpose(seg_v, [2, 0, 1]), np.transpose(seg_h, [2, 0, 1])
+    num_v = seg_v.shape[0]
+    num_h = seg_h.shape[0]
+    seg_v = seg_v.reshape([num_v, -1])
+    seg_h = seg_h.reshape([num_h, -1])
+    if not normalize:
+        seg_v = seg_v - 1
+        seg_h = seg_h - 1
+    v_indices = np.arange(num_v)
+    h_indices = np.arange(num_h)
+    all_augmented_v = []
+    all_augmented_h = []
+    for i in range(num_v):
+        print(i)
+        train_v_original = seg_v[np.delete(v_indices, i), :]
+        params = augment.get_parameters(train_v_original)
+        augmented_v = augment.get_new_data(params, n_train)
+        all_augmented_v.append(augmented_v)
+    all_augmented_v = np.asarray(all_augmented_v)
+    for i in range(num_h):
+        print(i)
+        train_h_original = seg_h[np.delete(h_indices, i), :]
+        params = augment.get_parameters(train_h_original)
+        augmented_h = augment.get_new_data(params, n_train)
+        all_augmented_h.append(augmented_h)
+    all_augmented_h = np.asarray(all_augmented_h)
+    return all_augmented_v, all_augmented_h
+
+
+seg_path = sys.argv[1]
+orig_data = np.load(seg_path)
+v = orig_data['seg_v']
+h = orig_data['seg_h']
+all_augmented_v, all_augmented_h = leave_one_out_sets(v, h, 2)
+
+print('done')
