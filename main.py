@@ -127,7 +127,7 @@ def main(path):
                 training_parameters = train_model.get_train_params(net)
 
                 net, train_losses, valid_losses, valid_accuracies = train_model.train(net, [one_train, one_test], training_parameters)
-                all_acc.append(valid_accuracies)
+                all_acc.append(valid_accuracies[-1])
                 if valid_losses[-1] > 0.6:
                     print('\n{}\n'.format(idx))
                 all_train_losses.append(train_losses)
@@ -139,6 +139,7 @@ def main(path):
                     net, mask, one_test, False, len(settings.frames),
                     part_type='segments', zero_all=zero_all, value_type=value_type)
 
+            print('acc: {}'.format(np.mean(np.asarray(all_acc))))
             frame_loss = np.mean(frames_loss_maps, axis=0)
             seg_loss = segment.recreate_image(mask, np.mean(seg_loss_maps, axis=0))
             data_io.save_to(frame_loss, settings.files['vis_frame'], 'vis')
@@ -156,7 +157,6 @@ def main(path):
         data_sets = data_io.read_from_file(settings.files['set'], 'set')
         mask = data_io.read_from_file(settings.files['mask'], 'mask')
         net = data_io.read_from_file(settings.files['net'], 'net')
-
 
     if 'los' in settings.stages:
         # TODO: update
