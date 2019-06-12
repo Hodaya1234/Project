@@ -50,21 +50,23 @@ def train(model, datasets, parameters):
         if e > 60 and np.mean(valid_losses[-5:]) > np.mean(valid_losses[-10:-5]):
             print('finished at epoch {}'.format(e))
             break
-        if e % 2 == 0:
+        if e % 10 == 0:
             print("{}. train loss: {}   valid_loss: {}  valid-acc:{}".format(
                 e, train_losses[-1], valid_losses[-1], valid_accuracies[-1]))
 
     return model, train_losses, valid_losses, valid_accuracies
 
 
-def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=95, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
-    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.05)
-    scheduler = scheduler_type(optimizer, [5, 30], gamma=0.1)
+def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=50, lr=0.0001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
+    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.03)
+    scheduler = scheduler_type(optimizer, [30], gamma=0.1)
     return [loss_fn, n_epochs, optimizer, scheduler]
 
 
 def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):
-    outputs = model(test_x)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.double().to(device)
+    outputs = model(test_x.to(device))
     outputs = outputs.view(outputs.numel())
     mean_loss = loss_fn(outputs, test_y.double()).item()
 

@@ -275,7 +275,7 @@ def nn_train_test_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
     loss_fn = nn.BCELoss()
     optimizer_type = optim.Adam
     scheduler_type = optim.lr_scheduler.MultiStepLR
-    lr = 0.001
+    lr = 0.01
 
     train_losses = torch.zeros([n_sets, n_epochs])
     orig_losses = torch.zeros([n_sets, n_epochs])
@@ -283,7 +283,7 @@ def nn_train_test_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
     new_losses = torch.zeros([n_sets, n_epochs])
     new_accuracies = torch.zeros([n_sets, n_epochs])
 
-    for idx, one_train_x, one_orig_x in zip(range(n_sets), train_x, orig_x):
+    for idx, one_train_x, one_orig_x in enumerate(zip(train_x, orig_x)):
         print(idx)
         train_dataset = DataSet(one_train_x, train_y).normalize()
         orig_dataset = DataSet(one_orig_x, orig_y).normalize()
@@ -371,10 +371,10 @@ def main():
     [v_seg, h_seg] = data_io.read_from_file(seg_train_path, 'seg')
     train_x, train_y, test_orig_x, test_orig_y = create_train_val_no_aug(v_seg, h_seg)
 
-    svm_train_test_frame(train_x, train_y, test_orig_x, test_orig_y, new_test_x, new_test_y, frames)
+    # svm_train_test_frame(train_x, train_y, test_orig_x, test_orig_y, new_test_x, new_test_y, frames)
 
 
-    # nn_train_test_frame(torch.from_numpy(train_x), torch.from_numpy(train_y), torch.from_numpy(original_test_x), torch.from_numpy(original_test_y), torch.from_numpy(new_test_x), torch.from_numpy(new_test_y), frames)
+    nn_train_test_frame(torch.from_numpy(train_x), torch.from_numpy(train_y), torch.from_numpy(original_test_x), torch.from_numpy(original_test_y), torch.from_numpy(new_test_x), torch.from_numpy(new_test_y), frames)
 
 
     # svm_train_test_segs(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, mask)
