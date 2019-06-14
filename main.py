@@ -50,7 +50,7 @@ flags: the type of data to start with. options: raw, seg, set and res.
 import argparse
 
 import numpy as np
-import train_model
+import run_nn
 import create_data_set
 import data_io
 import data_set
@@ -123,19 +123,19 @@ def main(path):
             one_test = one_test.normalize(mean_t, std_t)
             print(idx)
             net = dense_net.get_model(D_in)
-            training_parameters = train_model.get_train_params(net)
+            training_parameters = run_nn.get_train_params(net)
 
-            net, train_losses, valid_losses, valid_accuracies = train_model.train(net, [one_train, one_test],
-                                                                                  training_parameters)
+            net, train_losses, valid_losses, valid_accuracies = run_nn.train(net, [one_train, one_test],
+                                                                             training_parameters)
             all_acc.append(valid_accuracies[-1])
             if valid_losses[-1] > 0.6:
                 print('\n{}\n'.format(idx))
             all_train_losses.append(train_losses)
             all_test_losses.append(valid_losses)
             frames_loss_maps[idx, :] = np.asarray(
-                train_model.run_with_missing_parts(net, mask, one_test, False, len(settings.frames), part_type='frames',
-                                                   zero_all=zero_all, value_type=value_type))
-            seg_loss_maps[idx, :] = train_model.run_with_missing_parts(
+                run_nn.run_with_missing_parts(net, mask, one_test, False, len(settings.frames), part_type='frames',
+                                              zero_all=zero_all, value_type=value_type))
+            seg_loss_maps[idx, :] = run_nn.run_with_missing_parts(
                 net, mask, one_test, False, len(settings.frames),
                 part_type='segments', zero_all=zero_all, value_type=value_type)
 
@@ -145,15 +145,6 @@ def main(path):
         data_io.save_to(frame_loss, settings.files['vis_frame'], 'vis')
         data_io.save_to(seg_loss, settings.files['vis_seg'], 'vis')
         visualize_res.plot_losses(all_train_losses, all_test_losses, [], n_data_sets)
-
-    # n_data_sets = len(data_sets[0]) if cv else 1
-    # data_io.save_to([train_losses, validation_losses, test_losses, test_accuracies, n_data_sets], settings.files['los'], 'los')
-
-    if 'los' in settings.stages:
-        # TODO: update
-        train_losses, validation_losses, test_losses, test_accuracies, n_data_sets = data_io.read_from_file(
-            settings.files['los'], 'los')
-        visualize_res.plot_losses(train_losses, validation_losses, test_losses, n_data_sets)
 
     if 'show_vis' in settings.stages:
         zero_all = 'zero_all' in settings.flags
@@ -172,6 +163,7 @@ def main(path):
 
         image = data_io.read_from_file(settings.files['vis_seg'], 'vis')
         visualize_res.plot_spatial(image, title=title_seg)
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("settings_path", help="path to the settings file")

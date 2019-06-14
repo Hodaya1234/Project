@@ -3,7 +3,7 @@ from sklearn import svm
 import numpy as np
 import matplotlib.pyplot as plt
 from dense_net import DenseNet
-import train_model
+import run_nn
 from data_set import DataSet
 import torch.utils.data as data_utils
 import torch

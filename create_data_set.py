@@ -54,7 +54,7 @@ def get_data(seg_v, seg_h, n_new_train, normalize=False):
     vx = np.asarray(vx)
     vy = np.asarray(vy)
     if not normalize:
-        tx, ty, vx, vy = tx + 1, ty + 1, vx + 1, vy + 1
+        tx, vx = tx + 1, vx + 1
     return tx, ty, vx, vy
 
 

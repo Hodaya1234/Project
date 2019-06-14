@@ -48,7 +48,7 @@ def read_from_file(folder_name, flag):
         return data
     if flag == 'los':
         with np.load(folder_name) as file:
-            data = file['train_losses'], file['validation_losses'], file['test_losses'], file['test_accuracies'], file['n_data_sets']
+            data = [file[i] for i in file]
         return data
     if flag == 'net':
         return torch.load(folder_name)
