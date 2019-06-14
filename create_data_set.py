@@ -31,6 +31,7 @@ def get_data(seg_v, seg_h, n_new_train, normalize=False):
     vx = []
     vy = []
     for i in range(num_v):
+        print(i)
         vx.append(seg_v[i,:])
         vy.append(1)
 
@@ -39,6 +40,7 @@ def get_data(seg_v, seg_h, n_new_train, normalize=False):
         ty.append(np.concatenate([np.ones([len(tv),]), np.zeros([len(aug_all_h),])]))
 
     for i in range(num_h):
+        print(i)
         vx.append(seg_h[i, :])
         vy.append(0)
 
@@ -50,6 +52,8 @@ def get_data(seg_v, seg_h, n_new_train, normalize=False):
     ty = np.asarray(ty)
     vx = np.asarray(vx)
     vy = np.asarray(vy)
+    if not normalize:
+        tx, ty, vx, vy = tx + 1, ty + 1, vx + 1, vy + 1
     return tx, ty, vx, vy
 
 

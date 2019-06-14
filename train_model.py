@@ -35,14 +35,15 @@ def train(model, datasets, parameters):
         train_losses.append(train_loss_mean)
 
         model.eval()
-        outputs = model(valid_dataset.all_x)
-        outputs = outputs.view(outputs.numel())
-        loss = loss_fn(outputs, valid_dataset.all_y).item()
-        valid_losses.append(loss)
+        with torch.no_grad():
+            outputs = model(valid_dataset.all_x)
+            outputs = outputs.view(outputs.numel())
+            loss = loss_fn(outputs, valid_dataset.all_y).item()
+            valid_losses.append(loss)
 
-        predictions = torch.round(outputs).int().view(outputs.numel())
-        accuracy = (predictions == valid_dataset.all_y.int()).sum().item() / valid_dataset.all_y.int()
-        valid_accuracies.append(accuracy.item())
+            predictions = torch.round(outputs).int().view(outputs.numel())
+            accuracy = torch.sum((predictions == valid_dataset.all_y.int())).item() / valid_dataset.all_y.shape[0]
+            valid_accuracies.append(accuracy)
         if valid_losses[-1] < 0.01:
             print('finished at epoch {}'.format(e))
             break

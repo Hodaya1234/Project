@@ -73,19 +73,19 @@ def svm_train_test_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames)
     new_acc = np.zeros([n_sets, n_frames])
     # train_y = np.concatenate([np.ones(63*41), np.zeros(63*41)])
     new_x = normalize(new_x)
-    for idx, one_train_x, one_orig_test_x in zip(range(n_sets), train_x, orig_x):
-        one_train_x = normalize(one_train_x)
-        one_orig_test_x = normalize(one_orig_test_x)
+    for idx, (tx, ty, vx, vy) in enumerate(zip(train_x, train_y, orig_x, orig_y)):
+        tx = normalize(tx)
+        vx = normalize(np.mean(tx, axis=0), np.std(tx, axis=0))
         for f in range(n_frames):
-            train_frame = one_train_x[:,:,f]
-            test_frame_orig = one_orig_test_x[:,:,f]
+            train_frame = tx[:,:,f]
+            test_frame_orig = vx[:,f]
             test_frame_new = new_x[:,:,f]
 
             clf = svm.SVC(C=5, gamma='auto')
-            clf.fit(np.asarray(train_frame), train_y)
+            clf.fit(np.asarray(train_frame), ty)
 
             orig_pred = clf.predict(test_frame_orig)
-            acc = np.mean(orig_pred == orig_y)
+            acc = np.mean(orig_pred == vy)
             orig_acc[idx,f] = acc
 
             new_pred = clf.predict(test_frame_new)
@@ -119,15 +119,15 @@ def svm_train_test_flat(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
     orig_acc = np.zeros([n_sets,])
     new_acc = np.zeros([n_sets,])
     new_x = normalize(new_x)
-    for idx, one_train_x, one_orig_test_x in zip(range(n_sets), train_x, orig_x):
+    for idx, (one_train_x, one_train_y, one_orig_test_x, one_orig_test_y) in enumerate(zip(train_x, train_y, orig_x, orig_y)):
         one_train_x = normalize(one_train_x)
         one_orig_test_x = normalize(one_orig_test_x)
 
         clf = svm.SVC(C=2, gamma='scale')
-        clf.fit(np.asarray(one_train_x), train_y)
+        clf.fit(np.asarray(one_train_x), one_train_y)
 
-        orig_pred = clf.predict(one_orig_test_x)
-        acc = np.mean(orig_pred == orig_y)
+        orig_pred = clf.predict(one_orig_test_x.T)
+        acc = np.mean(orig_pred == one_orig_test_y)
         orig_acc[idx] = acc
 
         new_pred = clf.predict(new_x)
@@ -344,7 +344,7 @@ def main():
     n_frames = len(frames)
 
     seg_train_path = 'Data/Segmented/b_sq.npz'
-    train_path = 'Data/Sets/b_sq_no_norm.npz'
+    train_path = 'Data/Sets/lou_b_no_norm.npz'
     test_path = 'Data/Segmented/c_sq.npz'
     mask = np.load('Data/Masks/a_sq.npy')
     n_seg = len(np.unique(mask)) - 1
@@ -352,8 +352,8 @@ def main():
     train_data_sets = data_io.read_from_file(train_path, 'set')
     train_x = train_data_sets[0]
     train_y = train_data_sets[1]
-    original_test_x = train_data_sets[4]
-    original_test_y = train_data_sets[5]
+    original_test_x = train_data_sets[2]
+    original_test_y = train_data_sets[3]
 
     n_sets = len(train_x)
     train_x = train_x.reshape([n_sets, -1,n_seg, n_frames])
@@ -368,13 +368,13 @@ def main():
     new_test_x = np.concatenate([v_test_data, h_test_data], axis=0)
     new_test_y = np.concatenate([np.ones(n_v), np.zeros(n_h)])
 
-    [v_seg, h_seg] = data_io.read_from_file(seg_train_path, 'seg')
-    train_x, train_y, test_orig_x, test_orig_y = create_train_val_no_aug(v_seg, h_seg)
+    # new_test_x = new_test_x.reshape([n_v + n_h, -1])
 
-    # svm_train_test_frame(train_x, train_y, test_orig_x, test_orig_y, new_test_x, new_test_y, frames)
+    svm_train_test_frame(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
 
+    # svm_train_test_flat(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
 
-    nn_train_test_frame(torch.from_numpy(train_x), torch.from_numpy(train_y), torch.from_numpy(original_test_x), torch.from_numpy(original_test_y), torch.from_numpy(new_test_x), torch.from_numpy(new_test_y), frames)
+    # nn_train_test_frame(torch.from_numpy(train_x), torch.from_numpy(train_y), torch.from_numpy(original_test_x), torch.from_numpy(original_test_y), torch.from_numpy(new_test_x), torch.from_numpy(new_test_y), frames)
 
 
     # svm_train_test_segs(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, mask)

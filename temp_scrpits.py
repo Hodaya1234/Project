@@ -94,7 +94,7 @@ def svm_classify():
 
 
 def temp_svm(data_sets, mask):
-    train_sets_x, train_y, validation_sets_x, valid_y, test_sets_x, test_y = data_sets
+    train_sets_x, train_y, test_sets_x, test_y = data_sets
     n_data_sets = len(train_sets_x)
     mask_nubmers = np.unique(mask)
     n_seg = len(mask_nubmers) - 1 if mask_nubmers[0] == 0 else len(mask_nubmers)
@@ -103,39 +103,40 @@ def temp_svm(data_sets, mask):
     frames_loss_maps = np.zeros([n_data_sets, n_frames])
     seg_loss_maps = np.zeros([n_data_sets, n_seg])
     all_indexes = np.asarray(list(range(n_seg*n_frames))).reshape([n_seg, n_frames])
-    for idx, (one_train, one_test) in enumerate(zip(train_sets_x, test_sets_x)):
-        m = np.mean(one_train, axis=0)
-        s = np.std(one_train, axis=0)
-        one_train = (one_train - m) / s
-        one_test = (one_test - m) / s
+    for idx, (tx, ty, vx, vy) in enumerate(zip(train_sets_x,train_y, test_sets_x, test_y)):
+        m = np.mean(tx, axis=0)
+        s = np.std(tx, axis=0)
+        tx = (tx - m) / s
+        vx = (vx - m) / s
+        vx = vx.reshape([1,-1])
         clf = svm.SVC()
-        clf.fit(one_train, train_y)
-        prediction = clf.predict(one_test)
-        real_validation_acc = np.mean(prediction == test_y)
+        clf.fit(tx, ty)
+        prediction = clf.predict(vx)
+        real_validation_acc = np.mean(prediction == vy)
         valid_accuracies.append(real_validation_acc)
-        # for f in range(n_frames):
-        #     new_test = np.zeros_like(one_test)
-        #     indices = all_indexes[:,f].ravel()
-        #     new_test[:,indices] = one_test[:,indices]
-        #     prediction = clf.predict(new_test)
-        #     frames_loss_maps[idx,f] += np.mean(prediction == test_y)
-        # for s in range(n_seg):
-        #     new_test = np.zeros_like(one_test)
-        #     indices = all_indexes[s,:].ravel()
-        #     new_test[:,indices] = one_test[:,indices]
-        #     prediction = clf.predict(new_test)
-        #     seg_loss_maps[idx,s] += np.mean(prediction == test_y)
+        for f in range(n_frames):
+            new_test = np.zeros_like(vx)
+            indices = all_indexes[:,f].ravel()
+            new_test[:,indices] = vx[:,indices]
+            prediction = clf.predict(new_test)
+            frames_loss_maps[idx,f] += np.mean(prediction == vy)
+        for s in range(n_seg):
+            new_test = np.zeros_like(vx)
+            indices = all_indexes[s,:].ravel()
+            new_test[:,indices] = vx[:,indices]
+            prediction = clf.predict(new_test)
+            seg_loss_maps[idx,s] += np.mean(prediction == vy)
     frame_loss = np.mean(frames_loss_maps, axis=0)
     seg_loss = np.mean(seg_loss_maps, axis=0)
     image = segment.recreate_image(mask, seg_loss)
     print(np.mean(valid_accuracies))
 
-    # plt.plot(np.arange(41)*10, frame_loss)
-    # plt.xlabel('Time from target onset (ms)')
-    # plt.ylabel('Accuracy')
-    # plt.show()
-    # # sio.savemat('b_svm_seg_acc', {'b':image})
-    # visualize_res.plot_spatial(image, title='accuracy for present segment')
+    plt.plot(np.arange(41)*10, frame_loss)
+    plt.xlabel('Time from target onset (ms)')
+    plt.ylabel('Accuracy')
+    plt.show()
+    # sio.savemat('b_svm_seg_acc', {'b':image})
+    visualize_res.plot_spatial(image, title='accuracy for present segment')
 
 
 def leave_one_out_augmentation(seg_v, seg_h, n_train=50, normalize=False):
@@ -229,7 +230,7 @@ def create_lou_sets():
     np.savez('Data/Sets/lou_c_no_norm', tx=train_sets_x, ty=train_sets_y, vx=validation_sets_x, vy=validation_sets_y)
 
 
-new_set = np.load('Data/Sets/lou_c_no_norm.npz')
+new_set = np.load('Data/Sets/lou_b_no_norm.npz')
 sets = [new_set[i] for i in new_set]
 tx, ty, vx, vy = sets
 mask = np.load('Data/Masks/a_sq.npy')
