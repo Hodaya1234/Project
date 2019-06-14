@@ -11,6 +11,7 @@ from sklearn import svm
 import visualize_res
 import augment
 import sys
+import dense_net
 
 
 def save_segmented(mask, v, h, name):

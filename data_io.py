@@ -44,7 +44,7 @@ def read_from_file(folder_name, flag):
         return data
     if flag == 'set':
         with np.load(folder_name) as file:
-            data = file['train_x'], file['train_y'], file['valid_x'], file['valid_y'], file['test_x'], file['test_y']
+            data = file['train_x'], file['train_y'], file['test_x'], file['test_y']
         return data
     if flag == 'los':
         with np.load(folder_name) as file:
@@ -89,7 +89,7 @@ def save_to(data, folder_name, flag):
     elif flag == 'set':
         train_x, train_y, valid_x, valid_y, test_x, test_y = data
         np.savez(
-            folder_name, train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y, test_x=test_x, test_y=test_y)
+            folder_name, train_x=train_x, train_y=train_y, test_x=test_x, test_y=test_y)
     elif flag == 'los':
         train_losses, validation_losses, test_losses, test_accuracies, n_data_sets = data
         np.savez(folder_name, train_losses=train_losses, validation_losses=validation_losses, test_losses=test_losses, test_accuracies=test_accuracies, n_data_sets=n_data_sets)
