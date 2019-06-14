@@ -12,15 +12,19 @@ def concat_augment_orig(orig, n_aug):
     return train
 
 
+def transform_seg(segmented):
+    new_data = np.transpose(segmented, [2, 0, 1])
+    num = new_data.shape[0]
+    new_data = new_data.reshape([num, -1])
+    return new_data, num
+
+
 def get_data(seg_v, seg_h, n_new_train, normalize=False):
     print('creating data sets')
-    seg_v, seg_h = np.transpose(seg_v, [2, 0, 1]), np.transpose(seg_h, [2, 0, 1])
-    num_v = seg_v.shape[0]
-    num_h = seg_h.shape[0]
+    seg_v, num_v = transform_seg(seg_v)
+    seg_h, num_h = transform_seg(seg_h)
     indices_v = np.arange(num_v)
     indices_h = np.arange(num_h)
-    seg_v = seg_v.reshape([num_v, -1])
-    seg_h = seg_h.reshape([num_h, -1])
     if not normalize:
         seg_v = seg_v - 1
         seg_h = seg_h - 1
