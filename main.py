@@ -59,6 +59,7 @@ import segment
 import visualize_res
 from read_settings import Settings
 from data_set import DataSet
+import torch
 
 
 def main(path):
@@ -99,11 +100,12 @@ def main(path):
         mask = data_io.read_from_file(settings.files['mask'], 'mask')
 
         tx, ty, vx, vy = data_sets
-        train = DataSet(tx, ty)
-        test = DataSet(vx, vy)
         D_in = vx.shape[1]
 
-        n_data_sets = len(train)
+        ty = ty.astype(np.float64)
+        vy = vy.astype(np.float64)
+
+        n_data_sets = len(tx)
         n_frames = len(settings.frames)
         mask_nubmers = np.unique(mask)
         n_seg = len(mask_nubmers) - 1 if mask_nubmers[0] == 0 else len(mask_nubmers)
@@ -113,7 +115,9 @@ def main(path):
         all_train_losses = []
         all_test_losses = []
         all_acc = []
-        for idx, one_train, one_test in zip(range(n_data_sets), train, test):
+        for idx, (one_tx, one_ty, one_vx, one_vy) in enumerate(zip(tx, ty, vx, vy)):
+            one_train = DataSet(torch.from_numpy(one_tx), torch.from_numpy(one_ty))
+            one_test = DataSet(torch.from_numpy(one_vx.reshape([1,-1])), torch.from_numpy(one_vy.reshape([1,])))
             mean_t, std_t = one_train.calc_mean_std()
             one_train = one_train.normalize(mean_t, std_t)
             one_test = one_test.normalize(mean_t, std_t)
@@ -145,50 +149,11 @@ def main(path):
     # n_data_sets = len(data_sets[0]) if cv else 1
     # data_io.save_to([train_losses, validation_losses, test_losses, test_accuracies, n_data_sets], settings.files['los'], 'los')
 
-
-    if 'test_net' in settings.stages:
-        # TODO: write this
-        cv = 'cv' in settings.flags
-        zero_all = 'zero_all' in settings.flags
-        value_type = 'acc' if 'acc' in settings.flags else 'loss'
-        data_sets = data_io.read_from_file(settings.files['set'], 'set')
-        mask = data_io.read_from_file(settings.files['mask'], 'mask')
-        net = data_io.read_from_file(settings.files['net'], 'net')
-
     if 'los' in settings.stages:
         # TODO: update
         train_losses, validation_losses, test_losses, test_accuracies, n_data_sets = data_io.read_from_file(
             settings.files['los'], 'los')
         visualize_res.plot_losses(train_losses, validation_losses, test_losses, n_data_sets)
-
-    if 'calc_vis' in settings.stages:
-        # TODO: remove
-        net = data_io.read_from_file(settings.files['net'], 'net')
-        data_sets = data_io.read_from_file(settings.files['set'], 'set')
-        mask = data_io.read_from_file(settings.files['mask'], 'mask')
-        cv = 'cv' in settings.flags
-        zero_all = 'zero_all' in settings.flags
-        value_type = 'acc' if 'acc' in settings.flags else 'loss'
-
-        train, valid, test, D_in = create_data_set.turn_to_torch_dataset_old(data_sets, cv=cv)
-        train, valid, test = data_set.normalize_datasets([train, valid, test], cv=cv)
-
-        loss_map = train_model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='both',
-                                                      zero_all=zero_all, value_type=value_type)
-        loss_map = loss_map.reshape([-1, len(settings.frames)])
-        loss_maps = [np.mean(loss_map[:, frames], axis=1) for frames in settings.frame_groups]
-        images = np.asarray([segment.recreate_image(mask, one_loss_map) for one_loss_map in loss_maps])
-        data_io.save_to(images, settings.files['vis_both'], 'vis')
-
-        loss_map = np.asarray(
-            train_model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='frames',
-                                               zero_all=zero_all, value_type=value_type))
-        data_io.save_to(loss_map, settings.files['vis_frame'], 'vis')
-
-        loss_map = train_model.run_with_missing_parts(net, mask, valid, cv, len(settings.frames), part_type='segments',
-                                                      zero_all=zero_all, value_type=value_type)
-        image = segment.recreate_image(mask, loss_map)
-        data_io.save_to(image, settings.files['vis_seg'], 'vis')
 
     if 'show_vis' in settings.stages:
         zero_all = 'zero_all' in settings.flags

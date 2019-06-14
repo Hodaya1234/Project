@@ -19,7 +19,6 @@ def train(model, datasets, parameters):
     valid_losses = []
     valid_accuracies = []
     train_loader = data_utils.DataLoader(train_dataset, batch_size=16, shuffle=True)
-    valid_y_int = valid_dataset.all_y.int()
     for e in range(n_epochs):
         scheduler.step()
         epoch_train_loss = []
@@ -42,8 +41,8 @@ def train(model, datasets, parameters):
         valid_losses.append(loss)
 
         predictions = torch.round(outputs).int().view(outputs.numel())
-        accuracy = (predictions == valid_y_int).sum().item() / len(valid_y_int)
-        valid_accuracies.append(accuracy)
+        accuracy = (predictions == valid_dataset.all_y.int()).sum().item() / valid_dataset.all_y.int()
+        valid_accuracies.append(accuracy.item())
         if valid_losses[-1] < 0.01:
             print('finished at epoch {}'.format(e))
             break
@@ -57,8 +56,8 @@ def train(model, datasets, parameters):
     return model, train_losses, valid_losses, valid_accuracies
 
 
-def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=50, lr=0.0001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
-    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.03)
+def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=80, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
+    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.5)
     scheduler = scheduler_type(optimizer, [30], gamma=0.1)
     return [loss_fn, n_epochs, optimizer, scheduler]
 

@@ -44,7 +44,7 @@ def read_from_file(folder_name, flag):
         return data
     if flag == 'set':
         with np.load(folder_name) as file:
-            data = file['train_x'], file['train_y'], file['test_x'], file['test_y']
+            data = [file[i] for i in file]
         return data
     if flag == 'los':
         with np.load(folder_name) as file:

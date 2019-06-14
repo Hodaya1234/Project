@@ -7,7 +7,7 @@ class DataSet(data_utils.Dataset):
         super(DataSet, self).__init__()
         self.all_x = x
         self.all_y = y
-        self.n_data = len(y)
+        self.n_data = x.shape[0]
 
     def __getitem__(self, index):
         x = self.all_x[index]
