@@ -87,7 +87,7 @@ def save_to(data, folder_name, flag):
         seg_v, seg_h = data
         np.savez(folder_name, seg_v=seg_v, seg_h=seg_h)
     elif flag == 'set':
-        train_x, train_y, valid_x, valid_y, test_x, test_y = data
+        train_x, train_y, test_x, test_y = data
         np.savez(
             folder_name, train_x=train_x, train_y=train_y, test_x=test_x, test_y=test_y)
     elif flag == 'los':

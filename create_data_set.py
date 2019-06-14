@@ -13,6 +13,7 @@ def concat_augment_orig(orig, n_aug):
 
 
 def get_data(seg_v, seg_h, n_new_train, normalize=False):
+    print('creating data sets')
     seg_v, seg_h = np.transpose(seg_v, [2, 0, 1]), np.transpose(seg_h, [2, 0, 1])
     num_v = seg_v.shape[0]
     num_h = seg_h.shape[0]
