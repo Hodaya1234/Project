@@ -137,9 +137,7 @@ def temp_svm(data_sets, mask):
     # visualize_res.plot_spatial(image, title='accuracy for present segment')
 
 
-
-
-def leave_one_out_sets(seg_v, seg_h, n_train=50, normalize=False):
+def leave_one_out_augmentation(seg_v, seg_h, n_train=50, normalize=False):
     seg_v, seg_h = np.transpose(seg_v, [2, 0, 1]), np.transpose(seg_h, [2, 0, 1])
     num_v = seg_v.shape[0]
     num_h = seg_h.shape[0]
@@ -172,62 +170,66 @@ def leave_one_out_sets(seg_v, seg_h, n_train=50, normalize=False):
     return all_augmented_v, all_augmented_h
 
 
-# seg_path = sys.argv[1]
-# save_path = sys.argv[2]
-# orig_data = np.load(seg_path)
-# v = orig_data['seg_v']
-# h = orig_data['seg_h']
-# all_augmented_v, all_augmented_h = leave_one_out_sets(v, h, 50)
-# np.savez(save_path, v=all_augmented_v, h=all_augmented_h)
+def create_lou_sets():
+    segmented = np.load('Data/Segmented/c_sq.npz')
+    augmented = np.load('Data/Res/lou_c.npz')
+    seg_v = segmented['seg_v']
+    seg_h = segmented['seg_h']
+    n_v = seg_v.shape[2]
+    n_h = seg_h.shape[2]
+    aug_v = augmented['v']
+    aug_h = augmented['h']
 
-# def create_sets()
+    seg_v = seg_v.reshape([-1, n_v]).T
+    seg_h = seg_h.reshape([-1, n_h]).T
+
+    params = augment.get_parameters(seg_v)
+    augmented_all_v = augment.get_new_data(params, 2)
+    params = augment.get_parameters(seg_h)
+    augmented_all_h = augment.get_new_data(params, 2)
+
+    v_ind = np.arange(n_v)
+    h_ind = np.arange(n_h)
+    train_v = np.concatenate([augmented_all_v, seg_v], axis=0)
+    train_h = np.concatenate([augmented_all_h, seg_h], axis=0)
+
+    train_sets_x = []
+    validation_sets_x = []
+    train_sets_y = []
+    validation_sets_y = []
+    for i in range(n_v):
+        print(i)
+        validation_x = seg_v[i, :]
+        validation_y = 1
+        train_v_i = np.concatenate([aug_v[i,:,:], seg_v[np.delete(v_ind, i), :]], axis=0)
+        train_x = np.concatenate([train_v_i, train_h])
+        train_y = np.concatenate([np.ones([len(train_v_i),]), np.zeros([len(train_h),])])
+        train_sets_x.append(train_x)
+        train_sets_y.append(train_y)
+        validation_sets_x.append(validation_x)
+        validation_sets_y.append(validation_y)
+
+    for i in range(n_h):
+        print(i)
+        validation_x = seg_h[i, :]
+        validation_y = 0
+        train_h_i = np.concatenate([aug_h[i,:,:], seg_h[np.delete(h_ind, i), :]], axis=0)
+        train_x = np.concatenate([train_v, train_h_i])
+        train_y = np.concatenate([np.ones([len(train_v),]), np.zeros([len(train_h_i),])])
+        train_sets_x.append(train_x)
+        train_sets_y.append(train_y)
+        validation_sets_x.append(validation_x)
+        validation_sets_y.append(validation_y)
+
+    train_sets_x = np.asarray(train_sets_x)
+    validation_sets_x = np.asarray(validation_sets_x)
+    train_sets_y = np.asarray(train_sets_y)
+    validation_sets_y = np.asarray(validation_sets_y)
+    np.savez('Data/Sets/lou_c_no_norm', tx=train_sets_x, ty=train_sets_y, vx=validation_sets_x, vy=validation_sets_y)
 
 
-segmented = np.load('Data/Segmented/b_sq.npz')
-augmented = np.load('Data/Res/lou_b.npz')
-seg_v = segmented['seg_v']
-seg_h = segmented['seg_h']
-n_v = seg_v.shape[2]
-n_h = seg_h.shape[2]
-aug_v = augmented['v']
-aug_h = augmented['h']
-
-seg_v = seg_v.reshape([-1, n_v]).T
-seg_h = seg_h.reshape([-1, n_h]).T
-
-v_ind = np.arange(n_v)
-h_ind = np.arange(n_h)
-train_v = np.concatenate([aug_v, seg_v], axis=0)
-train_h = np.concatenate([aug_h, seg_h])
-
-train_sets_x = []
-validation_sets_x = []
-train_sets_y = []
-validation_sets_y = []
-for i in range(n_v):
-    validation_x = seg_v[i, :]
-    validation_y = 1
-    train_v_i = np.concatenate([aug_v[i,:,:], seg_v[np.delete(v_ind, i), :]], axis=0)
-    train_x = np.concatenate([train_v_i, train_h])
-    train_y = np.concatenate([np.ones([len(train_v_i),]), np.zeros([len(train_h),])])
-    train_sets_x.append(train_x)
-    train_sets_y.append(train_y)
-    validation_sets_x.append(validation_x)
-    validation_sets_y.append(validation_y)
-
-for i in range(n_h):
-    validation_x = seg_h[i, :]
-    validation_y = 0
-    train_h_i = np.concatenate([aug_h[i,:,:], seg_h[np.delete(h_ind, i), :]], axis=0)
-    train_x = np.concatenate([train_v, train_h_i])
-    train_y = np.concatenate([np.ones([len(train_v),]), np.zeros([len(train_h_i),])])
-    train_sets_x.append(train_x)
-    train_sets_y.append(train_y)
-    validation_sets_x.append(validation_x)
-    validation_sets_y.append(validation_y)
-
-train_sets_x = np.asarray(train_sets_x)
-validation_sets_x = np.asarray(validation_sets_x)
-train_sets_y = np.asarray(train_sets_y)
-validation_sets_y = np.asarray(validation_sets_y)
-np.savez('Data/Sets/lou_b_no_norm', tx=train_sets_x, ty = train_sets_y, vx=validation_sets_x, vy=validation_sets_y)
+new_set = np.load('Data/Sets/lou_c_no_norm.npz')
+sets = [new_set[i] for i in new_set]
+tx, ty, vx, vy = sets
+mask = np.load('Data/Masks/a_sq.npy')
+temp_svm(sets, mask)
