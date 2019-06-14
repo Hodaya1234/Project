@@ -19,6 +19,19 @@ def transform_seg(segmented):
     return new_data, num
 
 
+def get_data_no_aug(seg_v, seg_h):
+    seg_v, num_v = transform_seg(seg_v)
+    seg_h, num_h = transform_seg(seg_h)
+    indices_v = np.arange(num_v)
+    indices_h = np.arange(num_h)
+
+    tx = []
+    ty = []
+    vx = []
+    vy = []
+
+
+
 def get_data(seg_v, seg_h, n_new_train, normalize=False):
     print('creating data sets')
     seg_v, num_v = transform_seg(seg_v)

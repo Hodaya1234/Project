@@ -58,7 +58,7 @@ def train(model, datasets, parameters):
 
 
 def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=80, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
-    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.05)
+    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.2)
     scheduler = scheduler_type(optimizer, [30], gamma=0.1)
     return [loss_fn, n_epochs, optimizer, scheduler]
 

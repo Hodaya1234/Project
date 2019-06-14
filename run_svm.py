@@ -81,7 +81,7 @@ def temp_svm(data_sets, mask, frames):
         tx = (tx - m) / s
         vx = (vx - m) / s
         vx = vx.reshape([1,-1])
-        clf = svm.SVC()
+        clf = svm.SVC(C=1, gamma='scale')
         clf.fit(tx, ty)
         prediction = clf.predict(vx)
         real_validation_acc = np.mean(prediction == vy)
@@ -111,3 +111,9 @@ def temp_svm(data_sets, mask, frames):
     # sio.savemat('b_svm_seg_acc', {'b':image})
     visualize_res.plot_spatial(image, title='accuracy for present segment')
 
+
+data_file = np.load('temp_outputs/sets/lou_c.npz')
+data_sets = [data_file[i] for i in data_file]
+mask = np.load('temp_outputs/mask/a_sq.npy')
+frames = np.arange(25,68)
+temp_svm(data_sets, mask, frames)
