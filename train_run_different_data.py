@@ -71,7 +71,6 @@ def svm_train_test_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames)
     n_sets = len(train_x)
     orig_acc = np.zeros([n_sets, n_frames])
     new_acc = np.zeros([n_sets, n_frames])
-    # train_y = np.concatenate([np.ones(63*41), np.zeros(63*41)])
     new_x = normalize(new_x)
     for idx, (tx, ty, vx, vy) in enumerate(zip(train_x, train_y, orig_x, orig_y)):
         for f in range(n_frames):
@@ -84,7 +83,7 @@ def svm_train_test_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames)
             train_frame = (train_frame - m) / s
             test_frame_orig = (test_frame_orig.reshape([1,-1]) - m) / s
 
-            clf = svm.SVC(C=1, gamma='auto')
+            clf = svm.SVC(C=0.9, gamma='scale')
             clf.fit(train_frame, ty)
 
             orig_pred = clf.predict(test_frame_orig)
@@ -96,18 +95,16 @@ def svm_train_test_frame(train_x, train_y, orig_x, orig_y, new_x, new_y, frames)
             new_acc[idx,f] = acc
         print(idx)
 
-    np.save('orig', orig_acc)
-    np.save('new', new_acc)
     orig_acc = np.mean(orig_acc, axis=0)
     new_acc = np.mean(new_acc, axis=0)
     plt.figure()
-    plt.plot(frames, orig_acc, label='long SOA test')
-    plt.plot(frames, new_acc, label='short SOA test')
+    times = frames*10 - 270
+    plt.plot(times, orig_acc, color='#086a76', label='long interval validation')
+    plt.plot(times, new_acc, color='#62c3d1', label='short interval')
     plt.legend()
-    plt.hlines(0.5, frames[0], frames[-1], linestyles='dashed')
-    plt.ylabel('accuracy')
-    plt.xlabel('frame')
-    plt.title('SVM trained on long SOA separate frames')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Time from stimulus onset (ms)')
+    plt.title('SVM trained on long interval data')
     plt.show()
 
 
@@ -119,8 +116,12 @@ def svm_train_test_flat(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
     n_frames = len(frames)
     n_sets = len(train_x)
 
-    orig_acc = np.zeros([n_sets,])
-    new_acc = np.zeros([n_sets,])
+    orig_acc = np.zeros([n_sets])
+    new_acc = np.zeros([n_sets])
+    orig_acc_frames = np.zeros([n_sets,n_frames])
+    new_acc_frames = np.zeros([n_sets,n_frames])
+    indices = np.arange(new_x.shape[1]).reshape([-1, n_frames])
+
     new_x = normalize(new_x)
     for idx, (one_train_x, one_train_y, one_orig_test_x, one_orig_test_y) in enumerate(zip(train_x, train_y, orig_x, orig_y)):
         m = np.mean(one_train_x, axis=0)
@@ -130,20 +131,34 @@ def svm_train_test_flat(train_x, train_y, orig_x, orig_y, new_x, new_y, frames):
 
         clf = svm.SVC(C=1, gamma='scale')
         clf.fit(np.asarray(one_train_x), one_train_y)
+
         orig_pred = clf.predict(one_orig_test_x.reshape([1, -1]))
-        acc = np.mean(orig_pred == one_orig_test_y)
-        orig_acc[idx] = acc
+        orig_acc[idx] = np.mean(orig_pred == one_orig_test_y)
 
         new_pred = clf.predict(new_x)
-        acc = np.mean(new_pred == new_y)
-        new_acc[idx] = acc
-        print(idx)
+        new_acc[idx] = np.mean(new_pred == new_y)
+
+        for i,f in enumerate(frames):
+            frames_indices = indices[:,i]
+            one_orig_test_x_f = np.zeros_like(one_orig_test_x)
+            one_orig_test_x_f[:,frames_indices] = one_orig_test_x[:,frames_indices]
+
+            orig_pred = clf.predict(one_orig_test_x_f)
+            orig_acc_frames[idx, i] = np.mean(orig_pred == one_orig_test_y)
+
+            new_x_f = np.zeros_like(new_x)
+            new_x_f[:,frames_indices] = new_x[:,frames_indices]
+
+            new_pred = clf.predict(new_x_f)
+            new_acc_frames[idx, i] = np.mean(new_pred == new_y)
+
+
     plt.figure()
-    plt.scatter(list(range(n_sets)), orig_acc, label='b test accuracy (mean={0: .4f})'.format(np.mean(orig_acc)))
-    plt.scatter(list(range(n_sets)), new_acc, label='c test accuracy (mean={0: .4f})'.format(np.mean(new_acc)))
-    plt.ylabel('accuracy')
-    plt.xlabel('different cross validation sets')
-    plt.title('SVM accuracy trained on b tested on c, frames flattened')
+    plt.plot(frames*10 -270, np.mean(orig_acc_frames, axis=0), label='long interval validation')
+    plt.plot(frames*10 -270, np.mean(new_acc_frames, axis=0), label='short interval validation')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Time from stimulus onset(ms)')
+    plt.title('SVM trained on long interval data')
     plt.legend()
     plt.show()
 
@@ -376,9 +391,11 @@ def main():
     if flat:
         new_test_x = new_test_x.reshape([n_v + n_h, -1])
 
-    svm_train_test_frame(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
+    if flat:
+        svm_train_test_flat(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
+    else:
+        svm_train_test_frame(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
 
-    # svm_train_test_flat(train_x, train_y, original_test_x, original_test_y, new_test_x, new_test_y, frames)
 
     # nn_train_test_frame(torch.from_numpy(train_x), torch.from_numpy(train_y), torch.from_numpy(original_test_x), torch.from_numpy(original_test_y), torch.from_numpy(new_test_x), torch.from_numpy(new_test_y), frames)
 

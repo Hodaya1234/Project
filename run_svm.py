@@ -81,7 +81,7 @@ def temp_svm(data_sets, mask, frames):
         tx = (tx - m) / s
         vx = (vx - m) / s
         vx = vx.reshape([1,-1])
-        clf = svm.SVC(C=1, gamma='scale')
+        clf = svm.SVC(C=0.5, gamma='scale')
         clf.fit(tx, ty)
         prediction = clf.predict(vx)
         real_validation_acc = np.mean(prediction == vy)
@@ -104,7 +104,7 @@ def temp_svm(data_sets, mask, frames):
     print(np.mean(valid_accuracies))
 
     # TODO: check where is frame zero on frames
-    plt.plot(np.arange(len(frames))*10, frame_loss)
+    plt.plot(frames*10 - 270, frame_loss)
     plt.xlabel('Time from target onset (ms)')
     plt.ylabel('Accuracy')
     plt.show()
@@ -112,7 +112,7 @@ def temp_svm(data_sets, mask, frames):
     visualize_res.plot_spatial(image, title='accuracy for present segment')
 
 
-data_file = np.load('temp_outputs/sets/lou_c.npz')
+data_file = np.load('temp_outputs/sets/lou_a.npz')
 data_sets = [data_file[i] for i in data_file]
 mask = np.load('temp_outputs/mask/a_sq.npy')
 frames = np.arange(25,68)
