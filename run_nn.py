@@ -18,7 +18,7 @@ def train(model, datasets, parameters):
     train_losses = []
     valid_losses = []
     valid_accuracies = []
-    train_loader = data_utils.DataLoader(train_dataset, batch_size=16, shuffle=True)
+    train_loader = data_utils.DataLoader(train_dataset, batch_size=32, shuffle=True)
     for e in range(n_epochs):
         scheduler.step()
         epoch_train_loss = []
@@ -58,8 +58,8 @@ def train(model, datasets, parameters):
 
 
 def get_train_params(model, loss_fn=nn.BCELoss(), n_epochs=40, lr=0.001, optimizer_type=optim.Adam, scheduler_type=optim.lr_scheduler.MultiStepLR, schedule_epochs=5):
-    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.05)
-    scheduler = scheduler_type(optimizer, [30], gamma=0.1)
+    optimizer = optimizer_type(model.parameters(), lr=lr, weight_decay=0.1)
+    scheduler = scheduler_type(optimizer, [10], gamma=0.5)
     return [loss_fn, n_epochs, optimizer, scheduler]
 
 
@@ -71,7 +71,7 @@ def test_model(model, test_x, test_y, loss_fn=nn.BCELoss()):
     mean_loss = loss_fn(outputs, test_y.double()).item()
 
     predictions = torch.round(outputs).int().view(outputs.numel())
-    accuracy = (predictions == test_y.int()).sum().item() / len(test_y)
+    accuracy = torch.mean((predictions == test_y.int()).float()).item()
     return accuracy, mean_loss
 
 
@@ -137,6 +137,7 @@ def run_with_missing_parts(model, segments_map, test_set, cv, n_frames, part_typ
             else:
                 loss_map[iter] += curr_acc
 
+    print(np.mean(loss_map))
     return loss_map
 
 

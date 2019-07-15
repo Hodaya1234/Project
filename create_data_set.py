@@ -30,6 +30,7 @@ def get_data_no_aug(seg_v, seg_h):
     vx = []
     vy = []
 
+
 def get_data(seg_v, seg_h, n_new_train, normalize=False):
     print('creating data sets')
     seg_v, num_v = transform_seg(seg_v)

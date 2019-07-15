@@ -31,8 +31,6 @@ def save_set(set_x, mask, name):
 
 
 
-
-
 def leave_one_out_augmentation(seg_v, seg_h, n_train=50, normalize=False):
     seg_v, seg_h = np.transpose(seg_v, [2, 0, 1]), np.transpose(seg_h, [2, 0, 1])
     num_v = seg_v.shape[0]
