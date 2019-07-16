@@ -42,10 +42,10 @@ def vert_horiz_seg(vert, horiz, square=False, max_seg=120):
     return all_segments
 
 
-def divide_data_to_segments(segments_matrix, raw_data, keep_background=False):
+def divide_data_to_segments(mask, raw_data, keep_background=False):
     """
     Take the original data and the segments mask matrix and create a segmented data
-    :param segments_matrix: [100 X 100] integer mask
+    :param mask: [100 X 100] integer mask
     :param raw_data: The original data, where the size of the first dimension is 10,000 or 100 X 100.
     :param frames_for_data A list of numbers of the relevant frames
     :return: The data rearranged in the segments, where the value in each segment is the mean of the pixels in it.
@@ -54,12 +54,12 @@ def divide_data_to_segments(segments_matrix, raw_data, keep_background=False):
     data_for_seg = np.copy(raw_data)
     data_for_seg = change_data_dim(data_for_seg, to_array=True)
 
-    seg_numbers = np.unique(segments_matrix)
+    seg_numbers = np.unique(mask)
     if seg_numbers[0] == 0:
         seg_numbers = seg_numbers[1:]
     else:
         data_for_seg[data_for_seg == 0] = np.nan
-    array_segments = np.reshape(segments_matrix, (10000, 1))
+    array_segments = np.reshape(mask, (10000, 1))
     frames_shape = np.copy(data_for_seg.shape)
 
     frames_shape[0] = len(seg_numbers)  # The new first dimension will be n_segments instead of 10,000

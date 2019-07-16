@@ -60,9 +60,6 @@ def svm_classify():
     plt.title('Cross validation Accuracy for Frames')
     plt.plot([i+1 for i in frames],frame_accuracies)
     plt.show()
-    # loop over train and test and run svm
-
-    # plot accuracy
 
 
 def temp_svm(data_sets, mask, frames):
